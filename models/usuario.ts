@@ -146,44 +146,44 @@ class Usuario {
 		return null;
 	}
 
-	public static async listar(): Promise<Usuario[]> {
-		let lista: Usuario[] = null;
-
-		await app.sql.connect(async (sql) => {
-			lista = await sql.query("select u.id, u.email, u.nome, p.nome perfil, date_format(u.criacao, '%d/%m/%Y') criacao from usuario u inner join perfil p on p.id = u.idperfil where u.exclusao is null order by u.email asc") as Usuario[];
+	public static listar(): Promise<Usuario[]> {
+		return app.sql.connect(async (sql) => {
+			return (await sql.query("select u.id, u.email, u.nome, p.nome perfil, date_format(u.criacao, '%d/%m/%Y') criacao from usuario u inner join perfil p on p.id = u.idperfil where u.exclusao is null")) || [];
 		});
-
-		return (lista || []);
 	}
 
-	public static async obter(id: number): Promise<Usuario> {
-		let lista: Usuario[] = null;
-
-		await app.sql.connect(async (sql) => {
-			lista = await sql.query("select id, email, nome, idperfil, date_format(criacao, '%d/%m/%Y') criacao from usuario where id = ?", [id]) as Usuario[];
+	public static listarCombo(): Promise<Usuario[]> {
+		return app.sql.connect(async (sql) => {
+			return (await sql.query("select id, nome from usuario where exclusao is null order by nome asc")) || [];
 		});
+	}
 
-		return ((lista && lista[0]) || null);
+	public static obter(id: number): Promise<Usuario> {
+		return app.sql.connect(async (sql) => {
+			const lista: Usuario[] = await sql.query("select id, email, nome, idperfil, date_format(criacao, '%d/%m/%Y') criacao from usuario where id = ?", [id]);
+
+			return ((lista && lista[0]) || null);
+		});
 	}
 
 	public static async criar(usuario: Usuario): Promise<string> {
-		let res: string;
-		if ((res = Usuario.validar(usuario, true)))
+		const res = Usuario.validar(usuario, true);
+		if (res)
 			return res;
 
-		await app.sql.connect(async (sql) => {
+		return app.sql.connect(async (sql) => {
 			try {
 				await sql.query("insert into usuario (email, nome, idperfil, criacao) values (?, ?, ?, now())", [usuario.email, usuario.nome, usuario.idperfil]);
+
+				return null;
 			} catch (e) {
 				if (e.code) {
 					switch (e.code) {
 						case "ER_DUP_ENTRY":
-							res = `O e-mail ${usuario.email} já está em uso`;
-							break;
+							return `O e-mail ${usuario.email} já está em uso`;
 						case "ER_NO_REFERENCED_ROW":
 						case "ER_NO_REFERENCED_ROW_2":
-							res = "Perfil não encontrado";
-							break;
+							return "Perfil não encontrado";
 						default:
 							throw e;
 					}
@@ -192,19 +192,17 @@ class Usuario {
 				}
 			}
 		});
-
-		return res;
 	}
 
 	public static async editar(usuario: Usuario): Promise<string> {
-		let res: string;
-		if ((res = Usuario.validar(usuario, false)))
+		const res = Usuario.validar(usuario, false);
+		if (res)
 			return res;
 
 		if (usuario.id === Usuario.IdAdmin)
 			return "Não é possível editar o usuário administrador principal";
 
-		return await app.sql.connect(async (sql) => {
+		return app.sql.connect(async (sql) => {
 			await sql.query("update usuario set nome = ?, idperfil = ? where id = ?", [usuario.nome, usuario.idperfil, usuario.id]);
 
 			return (sql.affectedRows ? null : "Usuário não encontrado");

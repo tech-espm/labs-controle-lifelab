@@ -25,7 +25,45 @@ CREATE TABLE usuario (
   UNIQUE KEY usuario_email_UN (email),
   KEY usuario_exclusao_IX (exclusao),
   KEY usuario_idperfil_FK_IX (idperfil),
+  KEY usuario_nome_IX (nome),
   CONSTRAINT usuario_idperfil_FK FOREIGN KEY (idperfil) REFERENCES perfil (id) ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 
 INSERT INTO usuario (email, nome, idperfil, token, criacao) VALUES ('admin@espm.br', 'Administrador', 1, NULL, NOW());
+
+CREATE TABLE disciplina (
+  id int NOT NULL AUTO_INCREMENT,
+  idsistema varchar(32) NOT NULL,
+  idcatalogo varchar(16) NOT NULL,
+  anosemestre int NOT NULL,
+  nome varchar(100) NOT NULL,
+  exclusao datetime NULL,
+  criacao datetime NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY disciplina_idsistema_UN (idsistema),
+  KEY disciplina_anosemestre_exclusao_IX (anosemestre, exclusao),
+  KEY disciplina_exclusao_IX (exclusao)
+);
+
+CREATE TABLE disciplina_usuario (
+  id int NOT NULL AUTO_INCREMENT,
+  iddisciplina INT NOT NULL,
+  idusuario INT NOT NULL,
+  turma varchar(16) NULL, -- Os âncoras têm turma NULL
+  PRIMARY KEY (id),
+  UNIQUE KEY disciplina_usuario_iddisciplina_idusuario_UN (iddisciplina, idusuario),
+  KEY disciplina_usuario_idusuario_IX (idusuario),
+  CONSTRAINT disciplina_usuario_iddisciplina_FK FOREIGN KEY (iddisciplina) REFERENCES disciplina (id) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT disciplina_usuario_idusuario_FK FOREIGN KEY (idusuario) REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE RESTRICT
+);
+
+CREATE TABLE estudante (
+  id int NOT NULL AUTO_INCREMENT,
+  ra int NOT NULL,
+  email varchar(100) NOT NULL,
+  emailalt varchar(100) NOT NULL,
+  nome varchar(100) NOT NULL,
+  criacao datetime NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY estudante_ra_UN (ra)
+);

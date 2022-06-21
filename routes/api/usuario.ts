@@ -19,14 +19,6 @@ class UsuarioApiRoute {
 		res.sendStatus(204);
 	}
 
-	public static async listar(req: app.Request, res: app.Response) {
-		const u = await Usuario.cookie(req, res, true);
-		if (!u)
-			return;
-
-		res.json(await Usuario.listar());
-	}
-
 	@app.http.post()
 	public static async criar(req: app.Request, res: app.Response) {
 		const u = await Usuario.cookie(req, res, true);

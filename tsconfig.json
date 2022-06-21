@@ -10,8 +10,9 @@
 	"exclude": [
 		"node_modules",
 		"public",
-		"src",
+		"scss",
 		"sql",
+		"src",
 		"views"
 	]
 }
