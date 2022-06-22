@@ -1,0 +1,98 @@
+﻿<%
+	let hoje = new Date();
+	let ano = hoje.getFullYear();
+	let mes = hoje.getMonth() + 1;
+	let semestre = 1;
+	if (mes >= 6 && mes <= 11)
+		semestre = 2;
+	else if (mes === 12)
+		ano++;
+%>
+<div class="row">
+	<div class="col-sm-3">
+		<div class="form-group">
+			<label for="ano">Ano</label>
+			<input id="ano" name="ano" class="form-control" type="number" value="<%- ano %>" />
+		</div>
+	</div>
+
+	<div class="col-sm-4">
+		<div class="form-group">
+			<label for="semestre">Semestre</label>
+			<select id="semestre" name="semestre" class="form-control">
+				<option value="1" <%-((semestre === 1) ? 'selected="selected"' : '') %>>1º Semestre</option>
+				<option value="2" <%-((semestre === 2) ? 'selected="selected"' : '') %>>2º Semestre</option>
+			</select>
+		</div>
+	</div>
+
+	<div class="col-sm-5">
+		<div class="form-group">
+			<label for="idcatalogo">Código de Catálogo</label>
+			<input id="idcatalogo" name="idcatalogo" class="form-control text-uppercase" type="text" maxlength="16" spellcheck="false" />
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-sm-5 offset-sm-7">
+		<button type="button" onclick="conferirIdCatalogo()" class="btn btn-primary btn-block"><i class="fa fa-search"></i> Conferir Código de Catálogo</button>
+	</div>
+</div>
+
+<%- contentFor("scripts") %>
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	function conferirIdCatalogo() {
+		if (JsonWebApi.active)
+			return;
+
+		let idcatalogo = $("#idcatalogo").val().trim();
+		if (!idcatalogo)
+			return;
+
+		Swal.wait();
+
+		JsonWebApi.get("<%- root %>/api/disciplina/buscarDados?idcatalogo=" + encode(idcatalogo), function (response) {
+			if (response.success) {
+				Swal.success({ html: 'Nome: ' + encode(response.value.nome) + '<br/><br/>Código de sistema: ' + encode(response.value.idsistema) });
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		});
+	}
+
+	$("#form").validate({
+		rules: {
+			ano: {
+				required: true
+			},
+			semestre: {
+				required: true
+			},
+			idcatalogo: {
+				required: true
+			}
+		},
+
+		submitHandler: function (form) {
+			if (JsonWebApi.active)
+				return;
+
+			Swal.wait();
+
+			JsonWebApi.postFormData("<%- root %>/api/disciplina/criar", form, function (response) {
+				if (response.success) {
+					Swal.success("Disciplina criada com sucesso! " + emoji.happy).then(function () {
+						window.location.href = "<%- root %>/disciplina/editar?id=" + response.value;
+					});
+				} else {
+					Swal.error(response.value + " " + emoji.sad);
+				}
+			});
+		}
+	});
+	//]]>
+</script>

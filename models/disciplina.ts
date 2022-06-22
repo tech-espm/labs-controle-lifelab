@@ -13,7 +13,8 @@ interface Disciplina {
 	id: number;
 	idsistema: string;
 	idcatalogo: string;
-	anosemestre: number;
+	ano: number;
+	semestre: number;
 	nome: string;
 	exclusao?: string | null;
 	criacao: string;
@@ -39,17 +40,12 @@ class Disciplina {
 		if (!disciplina.idcatalogo || disciplina.idcatalogo.length > 16)
 			return "Código de catálogo da disciplina inválido";
 
-		disciplina.anosemestre = parseInt(disciplina.anosemestre as any);
-		if (isNaN(disciplina.anosemestre))
-			return "Ano/semestre inválido";
-
-		const ano = (disciplina.anosemestre / 100) | 0;
-		const semestre = (disciplina.anosemestre % 100);
-
-		if (ano < 2000 || ano > 9999)
+		disciplina.ano = parseInt(disciplina.ano as any);
+		if (isNaN(disciplina.ano) || disciplina.ano < 2000 || disciplina.ano > 9999)
 			return "Ano inválido";
 
-		if (semestre !== 1 && semestre !== 2)
+		disciplina.semestre = parseInt(disciplina.semestre as any);
+		if (isNaN(disciplina.semestre) || (disciplina.semestre !== 1 && disciplina.semestre !== 2))
 			return "Semestre inválido";
 
 		disciplina.nome = (disciplina.nome || "").normalize().trim();
@@ -90,19 +86,19 @@ class Disciplina {
 
 	public static listar(): Promise<Disciplina[]> {
 		return app.sql.connect(async (sql) => {
-			return (await sql.query("select id, idsistema, idcatalogo, anosemestre, nome, date_format(criacao, '%d/%m/%Y') criacao from disciplina")) || [];
+			return (await sql.query("select id, idsistema, idcatalogo, ano, semestre, nome, date_format(criacao, '%d/%m/%Y') criacao from disciplina where exclusao is null")) || [];
 		});
 	}
 
 	public static listarDeUsuario(idusuario: number): Promise<Disciplina[]> {
 		return app.sql.connect(async (sql) => {
-			return (await sql.query("select d.id, d.idsistema, d.idcatalogo, d.anosemestre, d.nome, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ?", [idusuario])) || [];
+			return (await sql.query("select d.id, d.idsistema, d.idcatalogo, d.ano, d.semestre, d.nome, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ? and d.exclusao is null", [idusuario])) || [];
 		});
 	}
 
 	public static obter(id: number): Promise<Disciplina> {
 		return app.sql.connect(async (sql) => {
-			const lista: Disciplina[] = await sql.query("select id, idsistema, idcatalogo, anosemestre, nome, date_format(criacao, '%d/%m/%Y') criacao from disciplina where id = ?", [id]);
+			const lista: Disciplina[] = await sql.query("select id, idsistema, idcatalogo, ano, semestre, nome, date_format(criacao, '%d/%m/%Y') criacao from disciplina where id = ?", [id]);
 
 			const disciplina = (lista && lista[0]) || null;
 
@@ -113,17 +109,31 @@ class Disciplina {
 		});
 	}
 
-	public static async criar(disciplina: Disciplina): Promise<string | number> {
-		if (!disciplina || !(disciplina.idcatalogo = (disciplina.idcatalogo || "").trim().toUpperCase()))
+	public static async buscarDados(idcatalogo: string): Promise<string | { idsistema: string, idcatalogo: string, nome: string }> {
+		if (!(idcatalogo = (idcatalogo || "").trim().toUpperCase()))
 			return "Código de catálogo da disciplina inválido";
 
+		// @@@
+		//const response = await app.request.json.get(appsettings.urlIntegracaoDisciplina + encodeURIComponent(disciplina.idcatalogo));
+		//if (!response || !response.success)
+		//	return "Erro de comunicação com o servidor de integração";
+
+		return {
+			idsistema: (new Date()).toISOString(),
+			idcatalogo,
+			nome: "Disciplina " + (new Date()).toLocaleTimeString()
+		};
+	}
+
+	public static async criar(disciplina: Disciplina): Promise<string | number> {
 		try {
-			// @@@
-			//const response = await app.request.json.get(appsettings.urlIntegracaoDisciplina + encodeURIComponent(disciplina.idcatalogo));
-			//if (!response || !response.success)
-			//	return "Erro de comunicação com o servidor de integração";
-			disciplina.idsistema = "XXX";
-			disciplina.nome = "Teste";
+			const d = await Disciplina.buscarDados(disciplina && disciplina.idcatalogo);
+			if (typeof d === "string")
+				return d;
+
+			disciplina.idsistema = d.idsistema;
+			disciplina.idcatalogo = d.idcatalogo;
+			disciplina.nome = d.nome;
 		} catch (ex: any) {
 			return "Erro de comunicação com o servidor de integração: " + (ex.message || ex.toString());
 		}
@@ -136,7 +146,7 @@ class Disciplina {
 			try {
 				await sql.beginTransaction();
 
-				await sql.query("insert into disciplina (idsistema, idcatalogo, anosemestre, nome, criacao) values (?, ?, ?, ?, ?)", [disciplina.idsistema, disciplina.idcatalogo, disciplina.anosemestre, disciplina.nome, DataUtil.horarioDeBrasiliaISOComHorario()]);
+				await sql.query("insert into disciplina (idsistema, idcatalogo, ano, semestre, nome, criacao) values (?, ?, ?, ?, ?, ?)", [disciplina.idsistema, disciplina.idcatalogo, disciplina.ano, disciplina.semestre, disciplina.nome, DataUtil.horarioDeBrasiliaISOComHorario()]);
 			} catch (e) {
 				if (e.code) {
 					switch (e.code) {
@@ -188,7 +198,7 @@ class Disciplina {
 			try {
 				await sql.beginTransaction();
 
-				await sql.query("update disciplina set anosemestre = ?, nome = ? where id = ?", [disciplina.anosemestre, disciplina.nome, disciplina.id]);
+				await sql.query("update disciplina set ano = ?, semestre = ?, nome = ? where id = ?", [disciplina.ano, disciplina.semestre, disciplina.nome, disciplina.id]);
 
 				const antigos: DisciplinaUsuario[] = (await sql.query("select id, idusuario, turma from disciplina_usuario where iddisciplina = ?", [disciplina.id])) || []
 				const atualizar: DisciplinaUsuario[] = [];
@@ -269,7 +279,7 @@ class Disciplina {
 		return app.sql.connect(async (sql) => {
 			await sql.query("update disciplina set exclusao = ? where id = ? and exclusao is null", [DataUtil.horarioDeBrasiliaISOComHorario(), id]);
 
-			return (sql.affectedRows ? null : "Usuário não encontrado");
+			return (sql.affectedRows ? null : "Disciplina não encontrada");
 		});
 	}
 };

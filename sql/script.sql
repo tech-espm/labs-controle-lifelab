@@ -35,13 +35,14 @@ CREATE TABLE disciplina (
   id int NOT NULL AUTO_INCREMENT,
   idsistema varchar(32) NOT NULL,
   idcatalogo varchar(16) NOT NULL,
-  anosemestre int NOT NULL,
+  ano smallint NOT NULL,
+  semestre tinyint NOT NULL,
   nome varchar(100) NOT NULL,
   exclusao datetime NULL,
   criacao datetime NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY disciplina_idsistema_UN (idsistema),
-  KEY disciplina_anosemestre_exclusao_IX (anosemestre, exclusao),
+  KEY disciplina_ano_semestre_exclusao_IX (ano, semestre, exclusao),
   KEY disciplina_exclusao_IX (exclusao)
 );
 

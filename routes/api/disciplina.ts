@@ -3,6 +3,19 @@ import Disciplina = require("../../models/disciplina");
 import Usuario = require("../../models/usuario");
 
 class DisciplinaApiRoute {
+	public static async buscarDados(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res, true);
+		if (!u)
+			return;
+
+		const ret = await Disciplina.buscarDados(req.query["idcatalogo"] as string);
+
+		if (typeof ret === "string")
+			res.status(400);
+
+		res.json(ret);
+	}
+
 	@app.http.post()
 	public static async criar(req: app.Request, res: app.Response) {
 		const u = await Usuario.cookie(req, res, true);

@@ -1,0 +1,193 @@
+﻿<input type="hidden" id="id" name="id" value="<%=(item ? item.id : 0) %>" />
+
+<div class="row">
+	<div class="col-sm-3">
+		<div class="form-group">
+			<label for="ano">Ano</label>
+			<input id="ano" name="ano" class="form-control" type="number" value="<%=(item ? item.ano : "") %>" />
+		</div>
+	</div>
+
+	<div class="col-sm-4">
+		<div class="form-group">
+			<label for="semestre">Semestre</label>
+			<select id="semestre" name="semestre" class="form-control">
+				<option value="1" <%-((item && item.semestre === 1) ? 'selected="selected"' : '') %>>1º Semestre</option>
+				<option value="2" <%-((item && item.semestre === 2) ? 'selected="selected"' : '') %>>2º Semestre</option>
+			</select>
+		</div>
+	</div>
+
+	<div class="col-sm-5">
+		<div class="form-group">
+			<label for="idcatalogo">Código de Catálogo</label>
+			<input id="idcatalogo" name="idcatalogo" class="form-control text-uppercase" type="text" spellcheck="false" readonly="readonly" value="<%=(item ? item.idcatalogo : "") %>" />
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-sm-6">
+		<div class="form-group">
+			<label for="idsistema">Código de Sistema</label>
+			<input id="idsistema" name="idsistema" class="form-control" type="text" spellcheck="false" readonly="readonly" value="<%=(item ? item.idsistema : "") %>" />
+		</div>
+	</div>
+
+	<div class="col-sm-6">
+		<div class="form-group">
+			<label for="nome">Nome</label>
+			<input id="nome" name="nome" class="form-control" type="text" maxlength="100" value="<%=(item ? item.nome : "") %>" />
+		</div>
+	</div>
+</div>
+
+<hr />
+
+<h2 class="my-4">Professores</h2>
+
+<div class="row">
+	<div class="col-sm-8 mb-3">
+		<div class="cb-search">
+			<select id="idprofessor" name="idprofessor" class="form-control" size="1">
+				<option value="">Selecione...</option>
+				<% for (let i = 0; i < professores.length; i++) { %>
+				<option value="<%= professores[i].id %>"><%= professores[i].nome %></option>
+				<% } %>
+			</select>
+		</div>
+	</div>
+
+	<div class="col-sm-4 mb-3">
+		<button type="button" onclick="adicionarProfessor()" class="btn btn-primary btn-block"><i class="fa fa-plus"></i> Adicionar</button>
+	</div>
+</div>
+
+<div class="text-center mb-3">
+	<small><i>Deixe a turma em branco para indicar que o professor é âncora da disciplina.</i></small>
+</div>
+
+<div class="table-responsive">
+	<table class="table table-flush table-striped table-hover no-footer mb-0">
+		<thead>
+			<tr>
+				<th class="col-min"></th>
+				<th>Nome</th>
+				<th class="col-min">Turma</th>
+			</tr>
+		</thead>
+		<tbody id="tabelabody">
+			<% if (item && item.professores) { for (let i = 0; i < item.professores.length; i++) { const professor = item.professores[i]; %>
+			<tr>
+				<td class="col-min">
+					<button title="Excluir" type="button" onclick="removerProfessor(this)" class="btn btn-sm btn-outline-danger"><i class="fa fa-fw fa-times"></i></button>
+					<input type="hidden" name="idsprofessor" value="<%= professor.idusuario %>" />
+				</td>
+				<td>
+					<%= professor.nome %>
+				</td>
+				<td class="col-min">
+					<input type="text" class="form-control turma text-uppercase" maxlength="16" spellcheck="false" name="turmas" value="<%= professor.turma %>" />
+				</td>
+			</tr>
+			<% } } %>
+		</tbody>
+	</table>
+</div>
+
+<%- contentFor("styles") %>
+<style class="text/css">
+	.turma {
+		width: 7rem;
+		max-width: 7rem;
+	}
+</style>
+
+<%- contentFor("scripts") %>
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	prepareCbSearch(document.getElementById("idprofessor"));
+
+	function adicionarProfessor() {
+		if (JsonWebApi.active)
+			return;
+
+		const id = parseInt($("#idprofessor").val());
+
+		if (!id)
+			return;
+
+		$("#tabelabody").append(`<tr>
+			<td>
+				<button title="Excluir" type="button" onclick="removerProfessor(this)" class="btn btn-sm btn-outline-danger"><i class="fa fa-fw fa-times"></i></button>
+				<input type="hidden" name="idsprofessor" value="${id}" />
+			</td>
+			<td>
+				${$("#idprofessor option:selected").html()}
+			</td>
+			<td class="col-min">
+				<input type="text" class="form-control turma text-uppercase" maxlength="16" spellcheck="false" name="turmas" />
+			</td>
+		</tr>`);
+	}
+
+	function removerProfessor(btn) {
+		if (JsonWebApi.active)
+			return;
+
+		$(btn.parentNode.parentNode).remove();
+	}
+
+	$("#form").validate({
+		rules: {
+			ano: {
+				required: true
+			},
+			semestre: {
+				required: true
+			},
+			idcatalogo: {
+				required: true
+			},
+			idsistema: {
+				required: true
+			},
+			nome: {
+				required: true
+			}
+		},
+
+		submitHandler: function (form) {
+			if (JsonWebApi.active)
+				return;
+
+			Swal.wait();
+
+			//<% if (item) { %>
+
+			JsonWebApi.postFormData("<%- root %>/api/disciplina/editar", form, function (response) {
+				if (response.success)
+					Swal.success("Disciplina alterada com sucesso! " + emoji.happy);
+				else
+					Swal.error(response.value + " " + emoji.sad);
+			});
+
+			//<% } else { %>
+
+			JsonWebApi.postFormData("<%- root %>/api/disciplina/criar", form, function (response) {
+				if (response.success) {
+					resetForm("#form");
+					$("#tabelabody").empty();
+					Swal.success("Disciplina criada com sucesso! " + emoji.happy);
+				} else {
+					Swal.error(response.value + " " + emoji.sad);
+				}
+			});
+
+			//<% } %>
+		}
+	});
+	//]]>
+</script>
