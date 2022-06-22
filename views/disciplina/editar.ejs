@@ -63,16 +63,13 @@
 	</div>
 </div>
 
-<div class="text-center mb-3">
-	<small><i>Deixe a turma em branco para indicar que o professor é âncora da disciplina.</i></small>
-</div>
-
 <div class="table-responsive">
 	<table class="table table-flush table-striped table-hover no-footer mb-0">
 		<thead>
 			<tr>
 				<th class="col-min"></th>
 				<th>Nome</th>
+				<th class="col-min">Âncora</th>
 				<th class="col-min">Turma</th>
 			</tr>
 		</thead>
@@ -87,6 +84,12 @@
 					<%= professor.nome %>
 				</td>
 				<td class="col-min">
+					<select class="form-control ancora" name="ancoras">
+						<option value="0"></option>
+						<option value="1" <%- (professor.ancora ? 'selected="selected"' : '' ) %>>Âncora</option>
+					</select>
+				</td>
+				<td class="col-min">
 					<input type="text" class="form-control turma text-uppercase" maxlength="16" spellcheck="false" name="turmas" value="<%= professor.turma %>" />
 				</td>
 			</tr>
@@ -97,7 +100,7 @@
 
 <%- contentFor("styles") %>
 <style class="text/css">
-	.turma {
+	.ancora, .turma {
 		width: 7rem;
 		max-width: 7rem;
 	}
@@ -126,6 +129,12 @@
 			</td>
 			<td>
 				${$("#idprofessor option:selected").html()}
+			</td>
+			<td class="col-min">
+				<select class="form-control ancora" name="ancoras">
+					<option value="0"></option>
+					<option value="1">Âncora</option>
+				</select>
 			</td>
 			<td class="col-min">
 				<input type="text" class="form-control turma text-uppercase" maxlength="16" spellcheck="false" name="turmas" />

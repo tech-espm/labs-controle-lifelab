@@ -50,7 +50,8 @@ CREATE TABLE disciplina_usuario (
   id int NOT NULL AUTO_INCREMENT,
   iddisciplina INT NOT NULL,
   idusuario INT NOT NULL,
-  turma varchar(16) NULL, -- Os âncoras têm turma NULL
+  ancora tinyint NOT NULL,
+  turma varchar(16) NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY disciplina_usuario_iddisciplina_idusuario_UN (iddisciplina, idusuario),
   KEY disciplina_usuario_idusuario_IX (idusuario),

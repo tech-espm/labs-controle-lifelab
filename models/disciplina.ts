@@ -6,6 +6,7 @@ interface DisciplinaUsuario {
 	id: number;
 	iddisciplina: number;
 	idusuario: number;
+	ancora: number;
 	turma: string;
 }
 
@@ -22,6 +23,7 @@ interface Disciplina {
 	professores?: any[];
 	nomesprofessor?: string[];
 	idsprofessor?: number[];
+	ancoras?: number[];
 	turmas?: string[];
 }
 
@@ -58,26 +60,28 @@ class Disciplina {
 		if (!Array.isArray(disciplina.idsprofessor))
 			disciplina.idsprofessor = [disciplina.idsprofessor as any];
 
+		if (!disciplina.ancoras)
+			disciplina.ancoras = [];
+
+		if (!Array.isArray(disciplina.ancoras))
+			disciplina.ancoras = [disciplina.ancoras as any];
+
 		if (!disciplina.turmas && (disciplina.turmas as any) != "")
 			disciplina.turmas = [];
 
 		if (!Array.isArray(disciplina.turmas))
 			disciplina.turmas = [disciplina.turmas as any];
 
-		if (disciplina.idsprofessor.length !== disciplina.turmas.length)
-			return "Quantidade inválida de professores/turmas";
+		if (disciplina.idsprofessor.length !== disciplina.turmas.length || disciplina.idsprofessor.length !== disciplina.ancoras.length)
+			return "Quantidade inválida de professores/âncoras/turmas";
 
 		for (let i = disciplina.idsprofessor.length - 1; i >= 0; i--) {
 			if (isNaN(disciplina.idsprofessor[i] = parseInt(disciplina.idsprofessor[i] as any)))
 				return "Id de professor inválido";
 
-			if (disciplina.turmas[i])
-				disciplina.turmas[i] = disciplina.turmas[i].normalize().trim().toUpperCase();
+			disciplina.ancoras[i] = (disciplina.ancoras[i] == 1 ? 1 : 0);
 
-			// Âncora
-			if (!disciplina.turmas[i])
-				disciplina.turmas[i] = null;
-			else if (disciplina.turmas[i].length > 16)
+			if (!(disciplina.turmas[i] = disciplina.turmas[i].normalize().trim().toUpperCase()) || disciplina.turmas[i].length > 16)
 				return "Turma inválida";
 		}
 
@@ -92,7 +96,7 @@ class Disciplina {
 
 	public static listarDeUsuario(idusuario: number): Promise<Disciplina[]> {
 		return app.sql.connect(async (sql) => {
-			return (await sql.query("select d.id, d.idsistema, d.idcatalogo, d.ano, d.semestre, d.nome, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ? and d.exclusao is null", [idusuario])) || [];
+			return (await sql.query("select d.id, d.idsistema, d.idcatalogo, d.ano, d.semestre, d.nome, du.ancora, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ? and d.exclusao is null order by d.ano desc, d.semestre desc, d.nome asc", [idusuario])) || [];
 		});
 	}
 
@@ -103,7 +107,7 @@ class Disciplina {
 			const disciplina = (lista && lista[0]) || null;
 
 			if (disciplina)
-				disciplina.professores = (await sql.query("select u.nome, du.idusuario, du.turma from disciplina_usuario du inner join usuario u on u.id = du.idusuario where du.iddisciplina = ? order by du.turma asc, u.nome asc", [id])) || [];
+				disciplina.professores = (await sql.query("select u.nome, du.idusuario, du.ancora, du.turma from disciplina_usuario du inner join usuario u on u.id = du.idusuario where du.iddisciplina = ? order by du.turma asc, u.nome asc", [id])) || [];
 
 			return disciplina;
 		});
@@ -165,7 +169,7 @@ class Disciplina {
 
 				if (disciplina.idsprofessor && disciplina.turmas) {
 					for (let i = disciplina.idsprofessor.length - 1; i >= 0; i--)
-						await sql.query("insert into disciplina_usuario (iddisciplina, idusuario, turma) values (?, ?, ?)", [disciplina.id, disciplina.idsprofessor[i], disciplina.turmas[i]]);
+						await sql.query("insert into disciplina_usuario (iddisciplina, idusuario, ancora, turma) values (?, ?, ?, ?)", [disciplina.id, disciplina.idsprofessor[i], disciplina.ancoras[i], disciplina.turmas[i]]);
 				}
 
 				await sql.commit();
@@ -200,7 +204,7 @@ class Disciplina {
 
 				await sql.query("update disciplina set ano = ?, semestre = ?, nome = ? where id = ?", [disciplina.ano, disciplina.semestre, disciplina.nome, disciplina.id]);
 
-				const antigos: DisciplinaUsuario[] = (await sql.query("select id, idusuario, turma from disciplina_usuario where iddisciplina = ?", [disciplina.id])) || []
+				const antigos: DisciplinaUsuario[] = (await sql.query("select id, idusuario, ancora, turma from disciplina_usuario where iddisciplina = ?", [disciplina.id])) || []
 				const atualizar: DisciplinaUsuario[] = [];
 				const novos: DisciplinaUsuario[] = [];
 
@@ -210,6 +214,7 @@ class Disciplina {
 							id: 0,
 							iddisciplina: disciplina.id,
 							idusuario: disciplina.idsprofessor[i],
+							ancora: disciplina.ancoras[i],
 							turma: disciplina.turmas[i]
 						});
 				}
@@ -222,7 +227,8 @@ class Disciplina {
 						if (antigo.idusuario === novo.idusuario) {
 							antigos.splice(i, 1);
 							novos.splice(j, 1);
-							if (antigo.turma !== novo.turma) {
+							if (antigo.ancora !== novo.ancora || antigo.turma !== novo.turma) {
+								antigo.ancora = novo.ancora;
 								antigo.turma = novo.turma;
 								atualizar.push(antigo);
 							}
@@ -238,6 +244,7 @@ class Disciplina {
 
 					const antigo = antigos.pop();
 					antigo.idusuario = novos[i].idusuario;
+					antigo.ancora = novos[i].ancora;
 					antigo.turma = novos[i].turma;
 
 					atualizar.push(antigo);
@@ -249,10 +256,10 @@ class Disciplina {
 					await sql.query("delete from disciplina_usuario where id = ?", [antigos[i].id]);
 
 				for (let i = atualizar.length - 1; i >= 0; i--)
-					await sql.query("update disciplina_usuario set idusuario = ?, turma = ? where id = ?", [atualizar[i].idusuario, atualizar[i].turma, atualizar[i].id]);
+					await sql.query("update disciplina_usuario set idusuario = ?, ancora = ?, turma = ? where id = ?", [atualizar[i].idusuario, atualizar[i].ancora, atualizar[i].turma, atualizar[i].id]);
 
 				for (let i = novos.length - 1; i >= 0; i--)
-					await sql.query("insert into disciplina_usuario (iddisciplina, idusuario, turma) values (?, ?, ?)", [novos[i].iddisciplina, novos[i].idusuario, novos[i].turma]);
+					await sql.query("insert into disciplina_usuario (iddisciplina, idusuario, ancora, turma) values (?, ?, ?, ?)", [novos[i].iddisciplina, novos[i].idusuario, novos[i].ancora, novos[i].turma]);
 
 				await sql.commit();
 
