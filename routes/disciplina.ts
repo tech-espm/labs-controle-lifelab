@@ -5,15 +5,28 @@ import Usuario = require("../models/usuario");
 class DisciplinaRoute {
 	public static async criar(req: app.Request, res: app.Response) {
 		let u = await Usuario.cookie(req);
-		if (!u || !u.admin)
+		if (!u || !u.admin) {
 			res.redirect(app.root + "/acesso");
-		else
+		} else {
+			const hoje = new Date();
+			let ano = hoje.getFullYear();
+			let mes = hoje.getMonth() + 1;
+			let semestre = 1;
+			if (mes >= 6 && mes <= 11)
+				semestre = 2;
+			else if (mes === 12)
+				ano++;
+
 			res.render("disciplina/criar", {
 				titulo: "Criar Disciplina",
 				textoSubmit: "Criar",
 				usuario: u,
-				item: null
+				item: null,
+				ano,
+				semestre,
+				disciplinas: await Disciplina.buscar(ano, semestre, true)
 			});
+		}
 	}
 
 	public static async editar(req: app.Request, res: app.Response) {
@@ -32,7 +45,7 @@ class DisciplinaRoute {
 				res.render("disciplina/editar", {
 					titulo: "Editar Disciplina",
 					usuario: u,
-					item: item,
+					item,
 					professores: await Usuario.listarCombo()
 				});
 		}
@@ -58,12 +71,54 @@ class DisciplinaRoute {
 			res.redirect(app.root + "/acesso");
 		else
 			res.render("disciplina/index", {
-				layout: "layout-tabela",
+				layout: "layout-sem-form",
 				titulo: "Minhas Disciplinas",
 				datatables: true,
 				usuario: u,
 				lista: await Disciplina.listarDeUsuario(u.id)
 			});
+	}
+
+	public static async chamada(req: app.Request, res: app.Response) {
+		let u = await Usuario.cookie(req);
+		if (!u) {
+			res.redirect(app.root + "/acesso");
+		} else {
+			let id = parseInt(req.query["id"] as string);
+			let item: any;
+			if (isNaN(id) || !(item = await Disciplina.obterChamada(id, u.id)))
+				res.render("index/nao-encontrado", {
+					layout: "layout-sem-form",
+					usuario: u
+				});
+			else
+				res.render("disciplina/chamada", {
+					titulo: "Chamada da Disciplina",
+					usuario: u,
+					item
+				});
+		}
+	}
+
+	public static async presenca(req: app.Request, res: app.Response) {
+		let u = await Usuario.cookie(req);
+		if (!u) {
+			res.redirect(app.root + "/acesso");
+		} else {
+			let id = parseInt(req.query["id"] as string);
+			let item: any;
+			if (isNaN(id) || !(item = await Disciplina.obterChamada(id, u.id)))
+				res.render("index/nao-encontrado", {
+					layout: "layout-sem-form",
+					usuario: u
+				});
+			else
+				res.render("disciplina/chamada", {
+					titulo: "Presenças da Disciplina",
+					usuario: u,
+					item
+				});
+		}
 	}
 }
 

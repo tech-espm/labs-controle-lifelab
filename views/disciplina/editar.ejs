@@ -1,27 +1,30 @@
 ﻿<input type="hidden" id="id" name="id" value="<%=(item ? item.id : 0) %>" />
+<input type="hidden" id="idcurso" name="idcurso" value="<%=(item ? item.idcurso : 0) %>" />
+<input type="hidden" id="idcatalogo" name="idcatalogo" value="<%=(item ? item.idcatalogo : 0) %>" />
+<input type="hidden" id="semestre" name="semestre" value="<%=(item ? item.semestre : 0) %>" />
 
 <div class="row">
 	<div class="col-sm-3">
 		<div class="form-group">
 			<label for="ano">Ano</label>
-			<input id="ano" name="ano" class="form-control" type="number" value="<%=(item ? item.ano : "") %>" />
+			<input id="ano" name="ano" class="form-control" type="number" readonly="readonly" value="<%=(item ? item.ano : "") %>" />
 		</div>
 	</div>
 
-	<div class="col-sm-4">
+	<div class="col-sm-3">
 		<div class="form-group">
-			<label for="semestre">Semestre</label>
-			<select id="semestre" name="semestre" class="form-control">
+			<label for="semestrebusca">Semestre</label>
+			<select id="semestrebusca" class="form-control" disabled="disabled">
 				<option value="1" <%-((item && item.semestre === 1) ? 'selected="selected"' : '') %>>1º Semestre</option>
 				<option value="2" <%-((item && item.semestre === 2) ? 'selected="selected"' : '') %>>2º Semestre</option>
 			</select>
 		</div>
 	</div>
 
-	<div class="col-sm-5">
+	<div class="col-sm-6">
 		<div class="form-group">
-			<label for="idcatalogo">Código de Catálogo</label>
-			<input id="idcatalogo" name="idcatalogo" class="form-control text-uppercase" type="text" spellcheck="false" readonly="readonly" value="<%=(item ? item.idcatalogo : "") %>" />
+			<label for="idsecao">Código de Seção</label>
+			<input id="idsecao" name="idsecao" class="form-control" type="text" spellcheck="false" readonly="readonly" value="<%=(item ? item.idsecao : "") %>" />
 		</div>
 	</div>
 </div>
@@ -157,7 +160,7 @@
 			semestre: {
 				required: true
 			},
-			idcatalogo: {
+			idsecao: {
 				required: true
 			},
 			idsistema: {

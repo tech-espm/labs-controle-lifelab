@@ -12,8 +12,8 @@
 			{ title: "", "class": "col-min", searchable: false, orderable: false, data: "id", render: function (v, type, row) { return '<a target="_blank" title="Editar" href="<%- root %>/disciplina/editar?id=' + row.id + '" class="btn btn-sm btn-outline-primary"><i class="fa fa-fw fa-edit"></i></a> <button title="Excluir" type="button" data-excluir="1" class="btn btn-sm btn-outline-danger"><i class="fa fa-fw fa-times"></i></button>'; } },
 			{ title: "Ano", "type": "number", data: "ano" },
 			{ title: "Semestre", "type": "number", data: "semestre" },
+			{ title: "Seção", render: encode, data: "idsecao" },
 			{ title: "Nome", render: encode, data: "nome" },
-			{ title: "Catálogo", render: encode, data: "idcatalogo" },
 			{ title: "Sistema", render: encode, data: "idsistema" },
 			{ title: "Criação", "class": "col-min text-right", "type": "customdateint", data: "criacao" }
 		],

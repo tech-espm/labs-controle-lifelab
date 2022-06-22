@@ -34,6 +34,8 @@ INSERT INTO usuario (email, nome, idperfil, token, criacao) VALUES ('admin@espm.
 CREATE TABLE disciplina (
   id int NOT NULL AUTO_INCREMENT,
   idsistema varchar(32) NOT NULL,
+  idcurso varchar(16) NOT NULL,
+  idsecao varchar(16) NOT NULL,
   idcatalogo varchar(16) NOT NULL,
   ano smallint NOT NULL,
   semestre tinyint NOT NULL,

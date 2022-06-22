@@ -1,42 +1,34 @@
-﻿<%
-	let hoje = new Date();
-	let ano = hoje.getFullYear();
-	let mes = hoje.getMonth() + 1;
-	let semestre = 1;
-	if (mes >= 6 && mes <= 11)
-		semestre = 2;
-	else if (mes === 12)
-		ano++;
-%>
+﻿<input type="hidden" id="ano" name="ano" value="<%- ano %>" />
+<input type="hidden" id="semestre" name="semestre" value="<%- semestre %>" />
+
 <div class="row">
 	<div class="col-sm-3">
 		<div class="form-group">
-			<label for="ano">Ano</label>
-			<input id="ano" name="ano" class="form-control" type="number" value="<%- ano %>" />
+			<label for="anobusca">Ano</label>
+			<input id="anobusca" class="form-control" type="number" value="<%- ano %>" onchange="buscarDisciplinas()" />
 		</div>
 	</div>
 
-	<div class="col-sm-4">
+	<div class="col-sm-3">
 		<div class="form-group">
-			<label for="semestre">Semestre</label>
-			<select id="semestre" name="semestre" class="form-control">
+			<label for="semestrebusca">Semestre</label>
+			<select id="semestrebusca" class="form-control" onchange="buscarDisciplinas()">
 				<option value="1" <%-((semestre === 1) ? 'selected="selected"' : '') %>>1º Semestre</option>
 				<option value="2" <%-((semestre === 2) ? 'selected="selected"' : '') %>>2º Semestre</option>
 			</select>
 		</div>
 	</div>
-
-	<div class="col-sm-5">
-		<div class="form-group">
-			<label for="idcatalogo">Código de Catálogo</label>
-			<input id="idcatalogo" name="idcatalogo" class="form-control text-uppercase" type="text" maxlength="16" spellcheck="false" />
-		</div>
-	</div>
 </div>
 
-<div class="row">
-	<div class="col-sm-5 offset-sm-7">
-		<button type="button" onclick="conferirIdCatalogo()" class="btn btn-primary btn-block"><i class="fa fa-search"></i> Conferir Código de Catálogo</button>
+<div class="form-group mb-0">
+	<div class="cb-search">
+		<label for="idsistema">Seção e Nome</label>
+		<select id="idsistema" name="idsistema" class="form-control">
+			<option value="">Selecione...</option>
+			<% for (let i = 0; i < disciplinas.length; i++) { %>
+			<option value="<%= disciplinas[i].courseid %>"><%= disciplinas[i].clasS_SECTION %> - <%= disciplinas[i].coursE_TITLE_LONG %></option>
+			<% } %>
+		</select>
 	</div>
 </div>
 
@@ -45,19 +37,43 @@
 	//<![CDATA[
 	"use strict";
 
-	function conferirIdCatalogo() {
+	prepareCbSearch(document.getElementById("idsistema"));
+
+	function buscarDisciplinas() {
 		if (JsonWebApi.active)
 			return;
 
-		let idcatalogo = $("#idcatalogo").val().trim();
-		if (!idcatalogo)
+		const ano = parseInt($("#anobusca").val()),
+			semestre = parseInt($("#semestrebusca").val());
+		if (!ano || !semestre)
 			return;
 
 		Swal.wait();
 
-		JsonWebApi.get("<%- root %>/api/disciplina/buscarDados?idcatalogo=" + encode(idcatalogo), function (response) {
+		JsonWebApi.get("<%- root %>/api/disciplina/buscar?ano=" + ano + "&semestre=" + semestre, function (response) {
 			if (response.success) {
-				Swal.success({ html: 'Nome: ' + encode(response.value.nome) + '<br/><br/>Código de sistema: ' + encode(response.value.idsistema) });
+				Swal.close();
+
+				$("#ano").val(ano);
+				$("#semestre").val(semestre);
+
+				const idsistema = document.getElementById("idsistema");
+				while (idsistema.firstChild)
+					idsistema.removeChild(idsistema.firstChild);
+
+				let opt = document.createElement("option");
+				opt.setAttribute("value", "");
+				opt.textContent = "Selecione...";
+				idsistema.appendChild(opt);
+
+				for (let i = 0; i < response.value.length; i++) {
+					opt = document.createElement("option");
+					opt.setAttribute("value", response.value[i].courseid);
+					opt.textContent = response.value[i].clasS_SECTION + " - " + response.value[i].coursE_TITLE_LONG;
+					idsistema.appendChild(opt);
+				}
+
+				setCbSearch(idsistema, "");
 			} else {
 				Swal.error(response.value + " " + emoji.sad);
 			}
@@ -66,13 +82,7 @@
 
 	$("#form").validate({
 		rules: {
-			ano: {
-				required: true
-			},
-			semestre: {
-				required: true
-			},
-			idcatalogo: {
+			idsistema: {
 				required: true
 			}
 		},

@@ -33,7 +33,7 @@ class UsuarioRoute {
 				res.render("usuario/editar", {
 					titulo: "Editar Usuário",
 					usuario: u,
-					item: item,
+					item,
 					perfis: perfis.lista
 				});
 		}

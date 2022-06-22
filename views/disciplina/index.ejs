@@ -1,65 +1,53 @@
-﻿<table class="table table-flush table-striped table-hover" id="tabela"></table>
+﻿<%
+	let cores = [
+		"primary",
+		"secondary",
+		"success",
+		"info",
+		"warning",
+		"danger",
+		"dark"
+	];
+%>
 
-<%- contentFor("scripts") %>
-<script type="text/javascript">
-	//<![CDATA[
-	"use strict";
+<% if (!lista.length) { %>
+<p class="text-center">Você ainda não tem disciplinas atribuídas. 😢</p>
+<% } else { %>
 
-	var tabela = prepareDataTable("tabela", {
-		order: [[1, "asc"]],
-		deferRender: true,
-		columns: [
-			{ title: "", "class": "col-min", searchable: false, orderable: false, data: "id", render: function (v, type, row) { return '<a target="_blank" title="Editar" href="<%- root %>/usuario/editar?id=' + row.id + '" class="btn btn-sm btn-outline-primary"><i class="fa fa-fw fa-edit"></i></a> <button title="Excluir" type="button" data-excluir="1" class="btn btn-sm btn-outline-danger"><i class="fa fa-fw fa-times"></i></button>'; } },
-			{ title: "E-mail", render: encode, data: "email" },
-			{ title: "Nome", render: encode, data: "nome" },
-			{ title: "Perfil", render: encode, data: "perfil" },
-			{ title: "Criação", "class": "col-min text-right", "type": "customdateint", data: "criacao" }
-		],
-		data: <%- JSON.stringify(lista) %>,
-		export: { title: "Usuários" }
-	});
+<div class="row">
 
-	$("#tabela").on("click", "tbody button", function () {
-		if (JsonWebApi.active)
-			return;
+<% for (let i = 0; i < lista.length; i++) { const cor = cores[i % 7], disciplina = lista[i]; %>
 
-		var trClicada = this.parentNode.parentNode,
-			email = null,
-			usuario = tabela.row(trClicada).data();
+<div class="col-xl-4 col-md-6 mb-4">
+	<div class="card border-left-<%- cor %> shadow h-100 py-2">
+		<div class="card-body">
+			<div class="row no-gutters align-items-center">
+				<div class="col mr-2">
+					<div class="text-xs font-weight-bold text-<%- cor %> text-uppercase mb-1"><%- disciplina.ano %>-<%- disciplina.semestre %> / <%= disciplina.turma %></div>
+					<div class="h5 mb-0 font-weight-bold text-gray-800"><%= disciplina.idsecao %> - <%= disciplina.nome %></div>
+				</div>
+				<div class="col-auto">
+					<i class="fas fa-book fa-2x text-gray-300"></i>
+				</div>
+			</div>
 
-		if (this.getAttribute("data-excluir")) {
-			Swal.okcancel({
-				html: 'Tem certeza que deseja excluir o usuário "' + usuario.email + '"? Esta operação NÃO pode ser desfeita!<br/><br/>Para confirmar a exclusão, por favor, digite abaixo o e-mail do usuário conforme exibido acima.<br/><br/><label for="txtExcluirEmail">E-mail do usuário</label><input type="text" class="form-control" spellcheck="false" autocomplete="off" id="txtExcluirEmail" />',
-				confirmButtonText: "Excluir",
-				preConfirm: function () {
-					email = $("#txtExcluirEmail").val().toLowerCase();
-					return true;
-				}
-			}, null, true).then(function (result) {
-				if (JsonWebApi.active || !trClicada)
-					return;
+			<hr />
 
-				if (result.value) {
-					if (email !== usuario.email.toLowerCase()) {
-						Swal.error("O e-mail do usuário não confere! " + emoji.sad);
-						return;
-					}
+			<% if (disciplina.ancora) { %>
+			<div class="mb-3 font-weight-bold text-<%- cor %>">Âncora</div>
 
-					Swal.wait();
+			<div class="mb-3">
+				<a href="<%- root %>/disciplina/chamada?id=<%- disciplina.id %>" class="btn btn-sm btn-<%- cor %>"><i class="fa fa-fw fa-edit"></i> Controlar Chamada</a>
+			</div>
+			<% } %>
 
-					JsonWebApi.delete("<%- root %>/api/usuario/excluir", function (response) {
-						if (response.success) {
-							Swal.success("Usuário excluído com sucesso! " + emoji.happy);
-							tabela.row(trClicada).remove().draw();
-						} else {
-							Swal.error(response.value + " " + emoji.sad);
-						}
-						trClicada = null;
-					}, "id", usuario.id);
-				}
-			});
-		}
-	});
+			<a href="<%- root %>/disciplina/presenca?id=<%- disciplina.id %>" class="btn btn-sm btn-outline-<%- cor %>"><i class="fa fa-fw fa-calendar-check"></i> Consultar Presenças</a>
+		</div>
+	</div>
+</div>
 
-	//]]>
-</script>
+<% } %>
+
+</div>
+
+<% } %>
