@@ -9,11 +9,12 @@ class IndexRoute {
 		if (!u)
 			res.redirect(app.root + "/login");
 		else
-			res.render("index/index", {
-				layout: "layout-sem-form",
-				titulo: "Dashboard",
-				usuario: u
-			});
+			res.redirect(app.root + "/disciplina");
+			//res.render("index/index", {
+			//	layout: "layout-sem-form",
+			//	titulo: "Dashboard",
+			//	usuario: u
+			//});
 	}
 
 	@app.http.all()
@@ -33,8 +34,7 @@ class IndexRoute {
 		if (r)
 			res.render("index/erro", {
 				layout: "layout-externo",
-				mensagem: r,
-				erro: r
+				mensagem: r
 			});
 		else
 			res.render("index/participacaook", {

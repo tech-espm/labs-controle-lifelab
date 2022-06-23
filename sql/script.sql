@@ -61,7 +61,7 @@ CREATE TABLE disciplina_usuario (
   CONSTRAINT disciplina_usuario_idusuario_FK FOREIGN KEY (idusuario) REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
 
-CREATE TABLE disciplina_ocorrencia {
+CREATE TABLE disciplina_ocorrencia (
   id int NOT NULL AUTO_INCREMENT,
   iddisciplina int NOT NULL,
   idusuario int NOT NULL,
@@ -72,18 +72,22 @@ CREATE TABLE disciplina_ocorrencia {
   qr2 int NOT NULL,
   qr3 int NOT NULL,
   qr4 int NOT NULL,
+  timestampqr int NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY disciplina_ocorrencia_data_iddisciplina_UN (data, iddisciplina),
   KEY disciplina_ocorrencia_iddisciplina_estado_IX (iddisciplina, estado)
-}
+);
 
-CREATE TABLE estudante (
-  id int NOT NULL AUTO_INCREMENT,
+CREATE TABLE disciplina_ocorrencia_estudante (
+  id bigint NOT NULL AUTO_INCREMENT,
+  idocorrencia int NOT NULL,
+  estado tinyint NOT NULL,
   ra int NOT NULL,
   email varchar(100) NOT NULL,
   emailalt varchar(100) NOT NULL,
   nome varchar(100) NOT NULL,
+  secao varchar(32) NOT NULL,
   criacao datetime NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY estudante_ra_UN (ra)
+  KEY disciplina_ocorrencia_estudante_idocorrencia_IX (idocorrencia)
 );

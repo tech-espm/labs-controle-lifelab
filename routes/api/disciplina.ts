@@ -68,6 +68,48 @@ class DisciplinaApiRoute {
 
 		res.sendStatus(204);
 	}
+
+	@app.http.post()
+	public static async iniciarOcorrencia(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const ret = await Disciplina.iniciarOcorrencia(u.id, req.body);
+
+		if (typeof ret === "string")
+			res.status(400);
+
+		res.json(ret);
+	}
+
+	@app.http.post()
+	public static async alterarLimiteOcorrencia(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const ret = await Disciplina.alterarLimiteOcorrencia(u.id, req.body);
+
+		if (typeof ret === "string")
+			res.status(400);
+
+		res.json(ret);
+	}
+
+	@app.http.post()
+	public static async proximoPasso(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const ret = await Disciplina.proximoPasso(u.id, req.body);
+
+		if (typeof ret === "string")
+			res.status(400);
+
+		res.json(ret);
+	}
 }
 
 export = DisciplinaApiRoute;

@@ -1,0 +1,105 @@
+<div class="p-3 text-center limite-altura">
+	<div class="mb-2"><img style="width: 100%; max-width: 100px;" alt="Logo ESPM" src="<%- staticRoot %>/img/logo.png" /></div>
+	<h1 class="h4 mb-2">
+		Verificação de Presença - QR <%- estado %> de <%- limite %>
+	</h1>
+	<p class="mb-5">
+		<small>
+			Se preferir,
+			<button type="button" class="btn btn-sm btn-outline-primary btn-copyjs" data-clipboard-text="<%= link %>"><i class="fa fa-copy"></i> clique aqui</button>
+			para copiar o link e compatilhar pelo chat.
+		</small>
+	</p>
+	<div id="qrcode"></div>
+</div>
+
+<%- contentFor("styles") %>
+<style type="text/css">
+	html, body {
+		height: 100%;
+		min-height: 100%;
+		max-height: 100%;
+		overflow: hidden;
+	}
+
+	.container, .row, .col-xl-10, .card, .limite-altura {
+		height: 100%;
+	}
+
+	.col-xl-10 {
+		padding-top: 0.25rem;
+		padding-bottom: 0.25rem;
+	}
+
+	.card {
+		margin: 0 !important;
+	}
+
+	.limite-altura {
+		display: flex;
+		flex-direction: column;
+		flex-wrap: nowrap;
+	}
+
+	#qrcode {
+		flex: 1 1 auto;
+		background-size: contain;
+		background-position: center center;
+		background-repeat: no-repeat;
+		margin-bottom: 2rem;
+	}
+
+	#qrcode > canvas {
+		display: none;
+	}
+
+	#qrcode > img {
+		visibility: hidden;
+	}
+</style>
+
+<%- contentFor("scripts") %>
+<!--
+	qrcode.js
+	https://github.com/davidshimjs/qrcodejs
+-->
+<script type="text/javascript" src="<%- staticRoot %>/lib/qrcodejs/js/qrcode-1.0.0.min.js"></script>
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	new QRCode("qrcode", {
+		text: "<%- link %>",
+		width: 500,
+		height: 500,
+		colorDark: "#000000",
+		colorLight: "#ffffff",
+		correctLevel: QRCode.CorrectLevel.H
+	});
+
+	$("#qrcode").attr("title", "");
+
+	function verificarQR() {
+		let verificar = true;
+
+		const img = $("#qrcode img")[0];
+
+		if (img) {
+			const src = img.getAttribute("src");
+			if (src) {
+				verificar = false;
+				img.parentNode.removeChild(img);
+				document.getElementById("qrcode").style.backgroundImage = "url(" + src + ")";
+			}
+		}
+
+		if (verificar)
+			setTimeout(verificarQR, 50);
+	}
+
+	setTimeout(verificarQR, 50);
+
+	prepareCopyHandler();
+
+	//]]>
+</script>

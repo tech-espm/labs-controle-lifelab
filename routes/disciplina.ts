@@ -1,4 +1,5 @@
 ﻿import app = require("teem");
+import appsettings = require("../appsettings");
 import Disciplina = require("../models/disciplina");
 import Usuario = require("../models/usuario");
 
@@ -79,25 +80,42 @@ class DisciplinaRoute {
 			});
 	}
 
-	public static async chamada(req: app.Request, res: app.Response) {
+	public static async verificacao(req: app.Request, res: app.Response) {
 		let u = await Usuario.cookie(req);
 		if (!u) {
 			res.redirect(app.root + "/acesso");
 		} else {
 			let id = parseInt(req.query["id"] as string);
-			let item: any;
-			if (isNaN(id) || !(item = await Disciplina.obterChamada(id, u.id)))
+			let disciplina: any, ocorrencia: any;
+			if (isNaN(id))
 				res.render("index/nao-encontrado", {
 					layout: "layout-sem-form",
 					usuario: u
 				});
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, true)) || (ocorrencia = await Disciplina.obterOcorrenciaNaoConcluida(id, u.id)) === false)
+				res.redirect(app.root + "/acesso");
 			else
-				res.render("disciplina/chamada", {
-					titulo: "Chamada da Disciplina",
+				res.render("disciplina/verificacao", {
+					titulo: "Verificação de Presença da Disciplina",
+					layout: "layout-card",
+					datepicker: true,
 					usuario: u,
-					item
+					disciplina,
+					ocorrencia
 				});
 		}
+	}
+
+	@app.route.methodName("qr/:estado/:limite/:tokenQR")
+	public static async qr(req: app.Request, res: app.Response) {
+		res.render("disciplina/qr", {
+			layout: "layout-externo",
+			titulo: "Código QR",
+			clipboard: true,
+			estado: parseInt(req.params["estado"] as string),
+			limite: parseInt(req.params["limite"] as string),
+			link: appsettings.urlPresenca + encodeURIComponent(req.params["tokenQR"] as string)
+		});
 	}
 
 	public static async presenca(req: app.Request, res: app.Response) {
@@ -106,17 +124,21 @@ class DisciplinaRoute {
 			res.redirect(app.root + "/acesso");
 		} else {
 			let id = parseInt(req.query["id"] as string);
-			let item: any;
-			if (isNaN(id) || !(item = await Disciplina.obterChamada(id, u.id)))
+			let disciplina: any;
+			if (isNaN(id))
 				res.render("index/nao-encontrado", {
 					layout: "layout-sem-form",
 					usuario: u
 				});
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, false)))
+				res.redirect(app.root + "/acesso");
 			else
-				res.render("disciplina/chamada", {
+				res.render("disciplina/presenca", {
 					titulo: "Presenças da Disciplina",
+					layout: "layout-card",
+					datepicker: true,
 					usuario: u,
-					item
+					disciplina
 				});
 		}
 	}

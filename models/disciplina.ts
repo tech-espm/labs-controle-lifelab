@@ -1,6 +1,7 @@
 ﻿import app = require("teem");
 import appsettings = require("../appsettings");
 import DataUtil = require("../utils/dataUtil");
+import TimeStamp = require("../utils/timeStamp");
 import IntegracaoMicroservices = require("./integracao/microservices");
 
 interface DisciplinaUsuario {
@@ -341,17 +342,18 @@ class Disciplina {
 	}
 
 	private static async usuarioTemDisciplinaInterno(sql: app.Sql, id: number, idusuario: number, apenasAncora: boolean): Promise<boolean> {
-		const ancora: number = await sql.scalar("select ancora from disciplina_usuario where iddisciplina = ? and idusuario = ?", [id, idusuario]);
-		if (ancora === 1)
-			return true;
-		if (ancora === 0)
-			return !apenasAncora;
-		return false;
+		const ancora: number = await sql.scalar("select du.ancora from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario]);
+		return (ancora === 1) || ((ancora === 0) && !apenasAncora);
 	}
 
-	public static usuarioTemDisciplina(id: number, idusuario: number, apenasAncora: boolean): Promise<boolean> {
+	private static async usuarioTemDisciplinaObjInterno(sql: app.Sql, id: number, idusuario: number, apenasAncora: boolean): Promise<any> {
+		const disciplinas: any[] = await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario]);
+		return (disciplinas && disciplinas.length && (disciplinas[0].ancora || !apenasAncora)) ? disciplinas[0] : null;
+	}
+
+	public static usuarioTemDisciplinaObj(id: number, idusuario: number, apenasAncora: boolean): Promise<any> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, apenasAncora);
+			return await Disciplina.usuarioTemDisciplinaObjInterno(sql, id, idusuario, apenasAncora);
 		});
 	}
 
@@ -359,7 +361,7 @@ class Disciplina {
 		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, true))
 			return false;
 
-		const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4 from disciplina where iddisciplina = ? and estado < 99", [id]);
+		const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4, timestampqr from disciplina_ocorrencia where iddisciplina = ? and estado < 99", [id]);
 
 		return (lista && lista[0]) || null;
 	}
@@ -370,7 +372,7 @@ class Disciplina {
 		});
 	}
 
-	public static async iniciarOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | number> {
+	public static async iniciarOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -385,28 +387,39 @@ class Disciplina {
 
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
 		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
-			return "Limite de verificações inválido";
+			return "Quantidade limite de verificações de presença inválida";
 
 		return app.sql.connect(async (sql) => {
 			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
 
 			if (o === false)
-				return "Sem permissão para controlar as ocorrências da disciplina";
+				return "Sem permissão para controlar a verificação de presença da disciplina";
 
 			if (o)
-				return "A ocorrência do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em aberto";
+				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda estão em andamento";
 
 			try {
-				await sql.query("insert into disciplina_ocorrencia (iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4) values (?, ?, ?, ?, 1, 0, 0, 0, 0)", [ocorrencia.iddisciplina, ocorrencia.idusuario, ocorrencia.data, ocorrencia.limite]);
+				await sql.query("insert into disciplina_ocorrencia (iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4, timestampqr) values (?, ?, ?, ?, 1, 0, 0, 0, 0, 0)", [ocorrencia.iddisciplina, idusuario, ocorrencia.data, ocorrencia.limite]);
 
 				ocorrencia.id = await sql.scalar("select last_insert_id()") as number;
 
-				return ocorrencia.id;
+				return {
+					id: ocorrencia.id,
+					iddisciplina: ocorrencia.iddisciplina,
+					idusuario: idusuario,
+					data: ocorrencia.data,
+					limite: ocorrencia.limite,
+					estado: 1,
+					qr1: 0,
+					qr2: 0,
+					qr3: 0,
+					qr4: 0
+				};
 			} catch (e) {
 				if (e.code) {
 					switch (e.code) {
 						case "ER_DUP_ENTRY":
-							return "Já existe uma ocorrência criada para o dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true);
+							return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true) + " já foi encerrada";
 						default:
 							throw e;
 					}
@@ -417,7 +430,7 @@ class Disciplina {
 		});
 	}
 
-	public static async alterarLimiteOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string> {
+	public static async alterarLimiteOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -431,27 +444,32 @@ class Disciplina {
 
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
 		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
-			return "Limite de verificações inválido";
+			return "Quantidade limite de verificações de presença inválida";
 
 		return app.sql.connect(async (sql) => {
 			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
 
 			if (o === false)
-				return "Sem permissão para controlar as ocorrências da disciplina";
+				return "Sem permissão para controlar a verificação de presença da disciplina";
 
 			if (!o)
-				return "Nenhuma ocorrência em aberto";
+				return "Nenhuma verificação de presença em andamento";
 
 			if (o.id !== ocorrencia.id)
-				return "Só é permitido alterar o limite de verificações na ocorrência mais recente, ainda em aberto, da disciplina";
+				return "Só é permitido alterar a quantidade limite de verificações de presença da aula mais recente, ainda em andamento, da disciplina";
 
-			await sql.query("update disciplina_ocorrencia set limite = ? where id = ? and iddisciplina = ? and estado < 99", [ocorrencia.limite, ocorrencia.id, ocorrencia.iddisciplina]);
+			if ((o.qr1 && (ocorrencia.limite < o.estado)) || (ocorrencia.limite < (o.estado - 1)))
+				return "A quantidade limite de verificações de presença deve ser maior ou igual à quantidade de códigos QR já gerados";
 
-			return (sql.affectedRows ? null : "Ocorrência não encontrada");
+			o.limite = ocorrencia.limite;
+
+			await sql.query("update disciplina_ocorrencia set limite = ? where id = ? and iddisciplina = ? and estado < 99", [o.limite, o.id, o.iddisciplina]);
+
+			return (sql.affectedRows ? o : "Verificação de presença não encontrada");
 		});
 	}
 
-	public static async proximoPasso(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | { estado: number, tokenQR: string }> {
+	public static async proximoPasso(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -463,23 +481,33 @@ class Disciplina {
 		if (isNaN(ocorrencia.iddisciplina))
 			return "Disciplina inválida";
 
+		ocorrencia.estado = parseInt(ocorrencia.estado as any);
+		if (isNaN(ocorrencia.estado))
+			return "Estado inválido";
+
+		ocorrencia.qr1 = parseInt(ocorrencia.qr1 as any);
+		if (isNaN(ocorrencia.qr1))
+			return "Código QR inválido";
+
 		return app.sql.connect(async (sql) => {
 			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
 
 			if (o === false)
-				return "Sem permissão para controlar as ocorrências da disciplina";
+				return "Sem permissão para controlar a verificação de presença da disciplina";
 
 			if (!o)
-				return "Nenhuma ocorrência em aberto";
+				return "Nenhuma verificação de presença em andamento";
 
 			if (o.id !== ocorrencia.id)
-				return "Só é permitido controlar a ocorrência mais recente, ainda em aberto, da disciplina";
+				return "Só é permitido controlar a verificação de presença da aula mais recente, ainda em andamento, da disciplina";
 
-			const estadoOriginal = o.estado,
-				qr1Original = o.qr1;
+			if (o.estado !== ocorrencia.estado || o.qr1 !== ocorrencia.qr1)
+				return "Por favor, atualize a página pois ela parece estar desatualizada";
+
+			let timestampqr: number;
 
 			if (o.qr1) {
-				// Bloqueia esse QR e avança para o próximo passo (eventualmente concluindo a ocorrência)
+				// Bloqueia esse QR e avança para o próximo passo (eventualmente concluindo a aula)
 				o.estado++;
 				if (o.estado > o.limite)
 					o.estado = 99;
@@ -487,6 +515,7 @@ class Disciplina {
 				o.qr2 = 0;
 				o.qr3 = 0;
 				o.qr4 = 0;
+				timestampqr = 0;
 			} else {
 				// Cria um novo QR
 				while (!(o.qr1 = ((0x7fffffff * Math.random()) | 0))) {
@@ -497,14 +526,12 @@ class Disciplina {
 				}
 				while (!(o.qr4 = ((0x7fffffff * Math.random()) | 0))) {
 				}
+				timestampqr = TimeStamp.agora();
 			}
 
-			await sql.query("update disciplina_ocorrencia set estado = ?, qr1 = ?, qr2 = ?, qr3 = ?, qr4 = ? where id = ? and iddisciplina = ? and estado = ? and qr1 = ?", [ocorrencia.estado, ocorrencia.qr1, ocorrencia.qr2, ocorrencia.qr3, ocorrencia.qr4, ocorrencia.id, ocorrencia.iddisciplina, estadoOriginal, qr1Original]);
+			await sql.query("update disciplina_ocorrencia set estado = ?, qr1 = ?, qr2 = ?, qr3 = ?, qr4 = ?, timestampqr = ? where id = ? and iddisciplina = ? and estado = ? and qr1 = ?", [o.estado, o.qr1, o.qr2, o.qr3, o.qr4, timestampqr, o.id, o.iddisciplina, ocorrencia.estado, ocorrencia.qr1]);
 
-			return (sql.affectedRows ? {
-				estado: o.estado,
-				tokenQR: o.qr1 ? (o.qr1.toString(16).padStart(8, "0") + o.qr2.toString(16).padStart(8, "0") + (o.id ^ o.qr1).toString(16).padStart(8, "0") + o.qr3.toString(16).padStart(8, "0") + o.qr4.toString(16).padStart(8, "0")) : null
-			} : "Ocorrência não encontrada");
+			return (sql.affectedRows ? o : "Verificação de presença não encontrada");
 		});
 	}
 
@@ -529,23 +556,40 @@ class Disciplina {
 		if (json.erro)
 			return json.erro;
 
+		const nome = (json.dados.nome || "").trim().toUpperCase(),
+			emailAcademico = (json.dados.emailAcademico || "").trim().toLowerCase(),
+			email = (json.dados.email || "").trim().toLowerCase();
+
+		if (!nome)
+			return "Nome não encontrado para o e-mail " + emailAcademico;
+
+		const ocorrencias: { idcurso: string, estado: number }[] = await app.sql.connect(async (sql) => {
+			return await sql.query("select d.idcurso, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
+		});
+
+		if (!ocorrencias || !ocorrencias.length)
+			return "Disciplina não encontrada ou prazo de validade do código QR expirado";
+
+		// @@@ Obter seção do aluno a partir da integração, com base no RA e em idcurso
+		const secao = "LSPA";
+
 		let raStr: string = null;
 
-		if (json.dados.emailAcademico)
-			raStr = await IntegracaoMicroservices.obterRA(json.dados.emailAcademico);
+		if (emailAcademico)
+			raStr = await IntegracaoMicroservices.obterRA(emailAcademico);
 
 		if (!raStr || raStr === "?@#$") {
-			if (json.dados.email)
-				raStr = await IntegracaoMicroservices.obterRA(json.dados.email);
+			if (email)
+				raStr = await IntegracaoMicroservices.obterRA(email);
 
 			if (!raStr || raStr === "?@#$") {
-				if (json.dados.emailAcademico) {
-					if (json.dados.email && json.dados.email !== json.dados.emailAcademico)
-						return "RA não encontrado com os e-mails " + json.dados.emailAcademico + " e " + json.dados.email;
+				if (emailAcademico) {
+					if (email && email !== emailAcademico)
+						return "RA não encontrado com os e-mails " + emailAcademico + " e " + email;
 					else
-						return "RA não encontrado com o e-mail " + json.dados.emailAcademico;
-				} else if (json.dados.email) {
-					return "RA não encontrado com o e-mail " + json.dados.email;
+						return "RA não encontrado com o e-mail " + emailAcademico;
+				} else if (email) {
+					return "RA não encontrado com o e-mail " + email;
 				} else {
 					return "E-mail não encontrado";
 				}
@@ -556,32 +600,10 @@ class Disciplina {
 		if (!ra)
 			return "RA inválido: " + raStr;
 
-		const idsistema = await app.sql.connect(async (sql) => {
-			return await sql.scalar("select d.idsistema from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]) as string;
-		});
-
-		if (!idsistema)
-			return "Disciplina não encontrada ou prazo de validade do código QR expirado";
-
-		// @@@ Obter seção do aluno a partir da integração, com base no RA e em idsistema
-
 		return app.sql.connect(async (sql) => {
-			await sql.query("insert into disciplina_estudante @@@");
+			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, secao, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, secao, DataUtil.horarioDeBrasiliaISOComHorario()]);
 
 			return null;
-		});
-	}
-
-	public static obterChamada(id: number, idusuario: number): Promise<any> {
-		return app.sql.connect(async (sql) => {
-			const lista: Disciplina[] = await sql.query("select id, idsistema, idcatalogo, ano, semestre, nome, date_format(criacao, '%d/%m/%Y') criacao from disciplina where id = ?", [id]);
-
-			const disciplina = (lista && lista[0]) || null;
-
-			if (disciplina)
-				disciplina.professores = (await sql.query("select u.nome, du.idusuario, du.ancora, du.turma from disciplina_usuario du inner join usuario u on u.id = du.idusuario where du.iddisciplina = ? order by du.turma asc, u.nome asc", [id])) || [];
-
-			return disciplina;
 		});
 	}
 };

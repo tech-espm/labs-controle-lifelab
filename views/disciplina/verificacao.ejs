@@ -1,0 +1,251 @@
+<div class="row no-gutters align-items-center">
+	<div class="col mr-2">
+		<div class="text-xs font-weight-bold text-primary text-uppercase mb-1"><%- disciplina.ano %>-<%- disciplina.semestre %> / <%= disciplina.turma %></div>
+		<div class="h5 mb-0 font-weight-bold text-gray-800"><%= disciplina.idsecao %> - <%= disciplina.nome %></div>
+	</div>
+	<div class="col-auto">
+		<i class="fas fa-book fa-2x text-gray-300"></i>
+	</div>
+</div>
+
+<hr />
+
+<div id="rowData" class="row" style="display: none;">
+	<div class="col-sm-4 offset-sm-4">
+		<div class="form-group text-center">
+			<label for="data">Data da Aula</label>
+			<input id="data" class="form-control text-center" type="text" spellcheck="false" <%- (ocorrencia ? 'disabled="disabled"' : '') %> />
+		</div>
+	</div>
+</div>
+
+<div class="text-center">
+	<div id="labelAndamento" style="display: none;">
+		<h2 class="mb-3">A verificação de presença do dia <span id="labelData"></span> está em andamento</h2>
+	</div>
+	<div>
+		<button type="button" class="btn btn-lg btn-outline-primary mb-3" id="btnAlterarLimite" onclick="alterarLimiteOcorrencia()" style="display: none;"><i class="fa fa-edit"></i> Alterar Limite de Verificações</button>
+	</div>
+	<div>
+		<button type="button" class="btn btn-lg btn-primary mb-3" id="btnAcao" onclick="proximoPasso()" style="display: none;"><i class="fa fa-check" id="iconeAcao"></i> <span id="labelAcao">Iniciar Aula</span></button>
+	</div>
+	<div>
+		<a target="_blank" class="btn btn-lg btn-success mb-3" id="btnExibirQR" style="display: none;"><i class="fa fa-qrcode"></i> <span id="labelExibirQR">Exibir QR</span></a>
+	</div>
+</div>
+
+<%- contentFor("scripts") %>
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	let disciplina = <%- JSON.stringify(disciplina) %>,
+		ocorrencia = <%- JSON.stringify(ocorrencia) %>;
+
+	prepareDatePicker("#data");
+	setDatePickerValue("#data", ocorrencia ? DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true) : DataUtil.horarioDeBrasiliaBr());
+
+	async function iniciarOcorrencia() {
+		const dataPtBr = $("#data").val(),
+			data = DataUtil.converterDataISO(dataPtBr);
+		if (!data) {
+			Swal.error("Data da aula inválida " + emoji.sad);
+			return;
+		}
+
+		let limite = 0;
+
+		const result = await Swal.okcancelNoIcon({
+			html: 'Tem certeza que deseja iniciar a verificação de presença da aula do dia ' + dataPtBr + '?<br/><br/>Para confirmar o início da verificação, por favor, informe a quantidade limite de verificações de presença que ocorrerão ao longo da aula.<br/><br/><label for="txtLimite">Limite de verificações de presença</label><input type="number" class="form-control" spellcheck="false" autocomplete="off" id="txtLimite" />',
+			preConfirm: function () {
+				limite = parseInt($("#txtLimite").val());
+				return true;
+			}
+		});
+
+		if (JsonWebApi.active || !result.value)
+			return;
+
+		if (!limite || limite < 1 || limite > 8) {
+			Swal.error("A quantidade limite de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		Swal.wait();
+
+		JsonWebApi.post("<%- root %>/api/disciplina/iniciarOcorrencia", {
+			iddisciplina: disciplina.id,
+			data: DataUtil.converterISOParaNumero(data),
+			limite: limite
+		}, function (response) {
+			if (response.success) {
+				Swal.close();
+				ocorrencia = response.value;
+				atualizarTela();
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		});
+	}
+
+	async function alterarLimiteOcorrencia() {
+		if (JsonWebApi.active || Swal.isVisible() || !ocorrencia)
+			return;
+
+		let limite = 0;
+
+		const result = await Swal.okcancelNoIcon({
+			html: 'Por favor, informe a nova quantidade limite de verificações de presença que ocorrerão ao longo da aula.<br/><br/><label for="txtLimite">Limite de verificações de presença</label><input type="number" class="form-control" spellcheck="false" autocomplete="off" id="txtLimite" value="' + ocorrencia.limite + '" />',
+			preConfirm: function () {
+				limite = parseInt($("#txtLimite").val());
+				return true;
+			}
+		});
+
+		if (JsonWebApi.active || !result.value)
+			return;
+
+		if (!limite || limite < 1 || limite > 8) {
+			Swal.error("A quantidade limite de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		Swal.wait();
+
+		const limiteOriginal = ocorrencia.limite;
+		ocorrencia.limite = limite;
+
+		JsonWebApi.post("<%- root %>/api/disciplina/alterarLimiteOcorrencia", ocorrencia, function (response) {
+			if (response.success) {
+				Swal.close();
+				ocorrencia = response.value;
+				atualizarTela();
+			} else {
+				ocorrencia.limite = limiteOriginal;
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		});
+	}
+
+	async function descartarQR() {
+		const result = await Swal.okcancel(
+			(ocorrencia.estado > ocorrencia.limite) ?
+			"Tem certeza que deseja ENCERRAR a verificação de presença da aula? Esta operação NÃO pode ser desfeita!" :
+			"Tem certeza que deseja " + ((ocorrencia.estado === ocorrencia.limite) ? "ENCERRAR a verificação de presença da aula e " : "") + "invalidar o QR " + ocorrencia.estado + " de " + ocorrencia.limite + "? Esta operação NÃO pode ser desfeita!"
+		);
+
+		if (JsonWebApi.active || !result.value)
+			return;
+
+		Swal.wait();
+
+		JsonWebApi.post("<%- root %>/api/disciplina/proximoPasso", ocorrencia, function (response) {
+			if (response.success) {
+				Swal.close();
+				ocorrencia = response.value;
+				atualizarTela();
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		});
+	}
+
+	async function gerarQR() {
+		//const result = await Swal.okcancel(
+		//	"Tem certeza que deseja gerar o QR " + ocorrencia.estado + " de " + ocorrencia.limite + "? Esta operação NÃO pode ser desfeita!"
+		//);
+
+		//if (!result.value)
+		//	return
+
+		if (JsonWebApi.active)
+			return;
+
+		Swal.wait();
+
+		JsonWebApi.post("<%- root %>/api/disciplina/proximoPasso", ocorrencia, function (response) {
+			if (response.success) {
+				Swal.close();
+				ocorrencia = response.value;
+				atualizarTela();
+
+				const btnExibirQR = document.getElementById("btnExibirQR");
+				if (btnExibirQR && !btnExibirQR.style.display)
+					btnExibirQR.click();
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		});
+	}
+
+	function proximoPasso() {
+		if (JsonWebApi.active || Swal.isVisible())
+			return;
+
+		if (!ocorrencia)
+			return iniciarOcorrencia();
+
+		if (ocorrencia.qr1 || ocorrencia.estado > ocorrencia.limite)
+			return descartarQR();
+
+		return gerarQR();
+	}
+
+	function atualizarTela() {
+		if (ocorrencia && ocorrencia.estado === 99) {
+			Swal.success("Verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true) + " encerrada com sucesso! " + emoji.happy);
+			ocorrencia = null;
+		}
+
+		if (ocorrencia) {
+			$("#data").attr("disabled", "disabled");
+			$("#labelData").text(DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true));
+			$("#rowData").hide();
+			$("#labelAndamento").show();
+			$("#btnAlterarLimite").show();
+
+			if (ocorrencia.qr1) {
+				$("#iconeAcao")[0].className = "fa fa-times";
+				$("#labelAcao").text(
+					(ocorrencia.estado > ocorrencia.limite) ?
+					"Encerrar Verificação de Presença" :
+					((ocorrencia.estado === ocorrencia.limite) ? "Encerrar Verificação de Presença e " : "") + "Invalidar QR " + ocorrencia.estado + " de " + ocorrencia.limite
+				);
+				$("#btnAcao").show();
+				if (ocorrencia.estado > ocorrencia.limite) {
+					$("#btnExibirQR").hide();
+				} else {
+					$("#labelExibirQR").text("Exibir QR " + ocorrencia.estado + " de " + ocorrencia.limite);
+					$("#btnExibirQR").attr("href", "<%- root %>/disciplina/qr/" + ocorrencia.estado + "/" + ocorrencia.limite + "/" + ocorrencia.qr1.toString(16).padStart(8, "0") + ocorrencia.qr2.toString(16).padStart(8, "0") + (ocorrencia.id ^ ocorrencia.qr1).toString(16).padStart(8, "0") + ocorrencia.qr3.toString(16).padStart(8, "0") + ocorrencia.qr4.toString(16).padStart(8, "0"));
+					$("#btnExibirQR").show();
+				}
+				return;
+			}
+
+			if (ocorrencia.estado > ocorrencia.limite) {
+				$("#iconeAcao")[0].className = "fa fa-times";
+				$("#labelAcao").text("Encerrar Verificação de Presença");
+			} else {
+				$("#iconeAcao")[0].className = "fa fa-qrcode";
+				$("#labelAcao").text("Gerar QR " + ocorrencia.estado + " de " + ocorrencia.limite);
+			}
+			$("#btnAcao").show();
+			$("#btnExibirQR").hide();
+
+			return;
+		}
+
+		$("#data").removeAttr("disabled");
+		$("#rowData").show();
+		$("#labelAndamento").hide();
+		$("#btnAlterarLimite").hide();
+		$("#iconeAcao")[0].className = "fa fa-check";
+		$("#labelAcao").text("Iniciar Verificação de Presença");
+		$("#btnAcao").show();
+		$("#btnExibirQR").hide();
+	}
+
+	atualizarTela();
+
+	//]]>
+</script>
