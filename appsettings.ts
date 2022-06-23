@@ -28,9 +28,12 @@ export = {
 	usuarioHashId: parseInt(process.env.app_usuarioHashId as string),
 	ssoRedir: process.env.app_ssoRedir as string,
 	ssoToken: process.env.app_ssoToken as string,
+	ssoRedirPresenca: process.env.app_ssoRedirPresenca as string,
+	urlPresenca: process.env.app_urlPresenca as string,
 	integracaoMicroservicesTokenCredentialsJson: process.env.app_integracaoMicroservicesTokenCredentialsJson as string,
 	integracaoMicroservicesPathGerarToken: process.env.app_integracaoMicroservicesPathGerarToken as string,
 	integracaoMicroservicesPathObterRA: process.env.app_integracaoMicroservicesPathObterRA as string,
 	integracaoMicroservicesPathObterCursos: process.env.app_integracaoMicroservicesPathObterCursos as string,
 	integracaoMicroservicesPathObterDisciplinas: process.env.app_integracaoMicroservicesPathObterDisciplinas as string,
+	integracaoMicroservicesPathObterPresencas: process.env.app_integracaoMicroservicesPathObterPresencas as string
 };

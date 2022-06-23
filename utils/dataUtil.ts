@@ -6,6 +6,10 @@ export = class DataUtil {
 				parseInt(dataISO.substring(8, 10))) | 0) : 0;
 	}
 
+	public static converterNumeroParaISO(dataISONumerica: number): string {
+		return DataUtil.formatar((dataISONumerica / 10000) | 0, ((dataISONumerica / 100) | 0) % 100, dataISONumerica % 100);
+	}
+
 	public static formatarBr(ano: number, mes: number, dia: number): string {
 		return ((dia < 10) ? ("0" + dia) : dia) + "/" + ((mes < 10) ? ("0" + mes) : mes) + "/" + ano;
 	}

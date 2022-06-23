@@ -50,8 +50,8 @@ CREATE TABLE disciplina (
 
 CREATE TABLE disciplina_usuario (
   id int NOT NULL AUTO_INCREMENT,
-  iddisciplina INT NOT NULL,
-  idusuario INT NOT NULL,
+  iddisciplina int NOT NULL,
+  idusuario int NOT NULL,
   ancora tinyint NOT NULL,
   turma varchar(16) NOT NULL,
   PRIMARY KEY (id),
@@ -60,6 +60,22 @@ CREATE TABLE disciplina_usuario (
   CONSTRAINT disciplina_usuario_iddisciplina_FK FOREIGN KEY (iddisciplina) REFERENCES disciplina (id) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT disciplina_usuario_idusuario_FK FOREIGN KEY (idusuario) REFERENCES usuario (id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
+
+CREATE TABLE disciplina_ocorrencia {
+  id int NOT NULL AUTO_INCREMENT,
+  iddisciplina int NOT NULL,
+  idusuario int NOT NULL,
+  data int NOT NULL,
+  limite tinyint NOT NULL,
+  estado tinyint NOT NULL,
+  qr1 int NOT NULL,
+  qr2 int NOT NULL,
+  qr3 int NOT NULL,
+  qr4 int NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY disciplina_ocorrencia_data_iddisciplina_UN (data, iddisciplina),
+  KEY disciplina_ocorrencia_iddisciplina_estado_IX (iddisciplina, estado)
+}
 
 CREATE TABLE estudante (
   id int NOT NULL AUTO_INCREMENT,

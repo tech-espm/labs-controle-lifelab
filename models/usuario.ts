@@ -76,11 +76,11 @@ class Usuario {
 		if (!resposta.success || !resposta.result)
 			return [(resposta.result && resposta.result.toString()) || ("Erro de comunicação de rede: " + resposta.statusCode), null];
 
-		return await app.sql.connect(async (sql) => {
-			const json = resposta.result;
-			if (json.erro)
-				return [json.erro, null];
+		const json = resposta.result;
+		if (json.erro)
+			return [json.erro, null];
 
+		return await app.sql.connect(async (sql) => {
 			const usuarios: Usuario[] = await sql.query("select id, email, nome, idperfil from usuario where email = ? and exclusao is null", [json.dados.email]);
 			let usuario: Usuario;
 

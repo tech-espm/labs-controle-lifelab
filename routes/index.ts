@@ -1,5 +1,6 @@
 ﻿import app = require("teem");
 import appsettings = require("../appsettings");
+import Disciplina = require("../models/disciplina");
 import Usuario = require("../models/usuario");
 
 class IndexRoute {
@@ -12,6 +13,33 @@ class IndexRoute {
 				layout: "layout-sem-form",
 				titulo: "Dashboard",
 				usuario: u
+			});
+	}
+
+	@app.http.all()
+	@app.route.methodName("p/:tokenQR")
+	public static async p(req: app.Request, res: app.Response) {
+		res.render("index/participacao", {
+			layout: "layout-externo",
+			titulo: "Participação",
+			ssoRedirPresenca: appsettings.ssoRedirPresenca + encodeURIComponent(req.params["tokenQR"] as string)
+		});
+	}
+
+	@app.http.all()
+	public static async r(req: app.Request, res: app.Response) {
+		const r = await Disciplina.confirmarParticipacao(req.query["i"] as string, req.query["token"] as string);
+
+		if (r)
+			res.render("index/erro", {
+				layout: "layout-externo",
+				mensagem: r,
+				erro: r
+			});
+		else
+			res.render("index/participacaook", {
+				layout: "layout-externo",
+				titulo: "Participação Confirmada"
 			});
 	}
 

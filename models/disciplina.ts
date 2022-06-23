@@ -11,6 +11,19 @@ interface DisciplinaUsuario {
 	turma: string;
 }
 
+interface DisciplinaOcorrencia {
+	id: number;
+	iddisciplina: number;
+	idusuario: number;
+	data: number;
+	limite: number;
+	estado: number;
+	qr1: number;
+	qr2: number;
+	qr3: number;
+	qr4: number;
+}
+
 interface Disciplina {
 	id: number;
 	idsistema: string;
@@ -131,6 +144,8 @@ class Disciplina {
 		if (!semestre)
 			throw new Error("Semestre inválido");
 
+		//const teste = await IntegracaoMicroservices.obterPresencas(20220512, "005560-01-2201-LLB-LL03-02748");
+		const teste = await IntegracaoMicroservices.obterTeste(148278, "005561");
 		const disciplinas = await IntegracaoMicroservices.obterDisciplinas(ano, semestre);
 		if (!disciplinas)
 			throw new Error("Erro de comunicação com o servidor de integração");
@@ -322,6 +337,238 @@ class Disciplina {
 			await sql.query("update disciplina set exclusao = ? where id = ? and exclusao is null", [DataUtil.horarioDeBrasiliaISOComHorario(), id]);
 
 			return (sql.affectedRows ? null : "Disciplina não encontrada");
+		});
+	}
+
+	private static async usuarioTemDisciplinaInterno(sql: app.Sql, id: number, idusuario: number, apenasAncora: boolean): Promise<boolean> {
+		const ancora: number = await sql.scalar("select ancora from disciplina_usuario where iddisciplina = ? and idusuario = ?", [id, idusuario]);
+		if (ancora === 1)
+			return true;
+		if (ancora === 0)
+			return !apenasAncora;
+		return false;
+	}
+
+	public static usuarioTemDisciplina(id: number, idusuario: number, apenasAncora: boolean): Promise<boolean> {
+		return app.sql.connect(async (sql) => {
+			return await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, apenasAncora);
+		});
+	}
+
+	private static async obterOcorrenciaNaoConcluidaInterno(sql: app.Sql, id: number, idusuario: number): Promise<false | DisciplinaOcorrencia> {
+		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, true))
+			return false;
+
+		const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4 from disciplina where iddisciplina = ? and estado < 99", [id]);
+
+		return (lista && lista[0]) || null;
+	}
+
+	public static obterOcorrenciaNaoConcluida(id: number, idusuario: number): Promise<false | DisciplinaOcorrencia> {
+		return app.sql.connect(async (sql) => {
+			return await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, id, idusuario);
+		});
+	}
+
+	public static async iniciarOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | number> {
+		if (!ocorrencia)
+			return "Dados inválidos";
+
+		ocorrencia.iddisciplina = parseInt(ocorrencia.iddisciplina as any);
+		if (isNaN(ocorrencia.iddisciplina))
+			return "Disciplina inválida";
+
+		ocorrencia.data = parseInt(ocorrencia.data as any);
+		const data = DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data));
+		if (!data)
+			return "Data inválida";
+
+		ocorrencia.limite = parseInt(ocorrencia.limite as any);
+		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
+			return "Limite de verificações inválido";
+
+		return app.sql.connect(async (sql) => {
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+
+			if (o === false)
+				return "Sem permissão para controlar as ocorrências da disciplina";
+
+			if (o)
+				return "A ocorrência do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em aberto";
+
+			try {
+				await sql.query("insert into disciplina_ocorrencia (iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4) values (?, ?, ?, ?, 1, 0, 0, 0, 0)", [ocorrencia.iddisciplina, ocorrencia.idusuario, ocorrencia.data, ocorrencia.limite]);
+
+				ocorrencia.id = await sql.scalar("select last_insert_id()") as number;
+
+				return ocorrencia.id;
+			} catch (e) {
+				if (e.code) {
+					switch (e.code) {
+						case "ER_DUP_ENTRY":
+							return "Já existe uma ocorrência criada para o dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true);
+						default:
+							throw e;
+					}
+				} else {
+					throw e;
+				}
+			}			
+		});
+	}
+
+	public static async alterarLimiteOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string> {
+		if (!ocorrencia)
+			return "Dados inválidos";
+
+		ocorrencia.id = parseInt(ocorrencia.id as any);
+		if (isNaN(ocorrencia.id))
+			return "Id inválido";
+
+		ocorrencia.iddisciplina = parseInt(ocorrencia.iddisciplina as any);
+		if (isNaN(ocorrencia.iddisciplina))
+			return "Disciplina inválida";
+
+		ocorrencia.limite = parseInt(ocorrencia.limite as any);
+		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
+			return "Limite de verificações inválido";
+
+		return app.sql.connect(async (sql) => {
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+
+			if (o === false)
+				return "Sem permissão para controlar as ocorrências da disciplina";
+
+			if (!o)
+				return "Nenhuma ocorrência em aberto";
+
+			if (o.id !== ocorrencia.id)
+				return "Só é permitido alterar o limite de verificações na ocorrência mais recente, ainda em aberto, da disciplina";
+
+			await sql.query("update disciplina_ocorrencia set limite = ? where id = ? and iddisciplina = ? and estado < 99", [ocorrencia.limite, ocorrencia.id, ocorrencia.iddisciplina]);
+
+			return (sql.affectedRows ? null : "Ocorrência não encontrada");
+		});
+	}
+
+	public static async proximoPasso(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | { estado: number, tokenQR: string }> {
+		if (!ocorrencia)
+			return "Dados inválidos";
+
+		ocorrencia.id = parseInt(ocorrencia.id as any);
+		if (isNaN(ocorrencia.id))
+			return "Id inválido";
+
+		ocorrencia.iddisciplina = parseInt(ocorrencia.iddisciplina as any);
+		if (isNaN(ocorrencia.iddisciplina))
+			return "Disciplina inválida";
+
+		return app.sql.connect(async (sql) => {
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+
+			if (o === false)
+				return "Sem permissão para controlar as ocorrências da disciplina";
+
+			if (!o)
+				return "Nenhuma ocorrência em aberto";
+
+			if (o.id !== ocorrencia.id)
+				return "Só é permitido controlar a ocorrência mais recente, ainda em aberto, da disciplina";
+
+			const estadoOriginal = o.estado,
+				qr1Original = o.qr1;
+
+			if (o.qr1) {
+				// Bloqueia esse QR e avança para o próximo passo (eventualmente concluindo a ocorrência)
+				o.estado++;
+				if (o.estado > o.limite)
+					o.estado = 99;
+				o.qr1 = 0;
+				o.qr2 = 0;
+				o.qr3 = 0;
+				o.qr4 = 0;
+			} else {
+				// Cria um novo QR
+				while (!(o.qr1 = ((0x7fffffff * Math.random()) | 0))) {
+				}
+				while (!(o.qr2 = ((0x7fffffff * Math.random()) | 0))) {
+				}
+				while (!(o.qr3 = ((0x7fffffff * Math.random()) | 0))) {
+				}
+				while (!(o.qr4 = ((0x7fffffff * Math.random()) | 0))) {
+				}
+			}
+
+			await sql.query("update disciplina_ocorrencia set estado = ?, qr1 = ?, qr2 = ?, qr3 = ?, qr4 = ? where id = ? and iddisciplina = ? and estado = ? and qr1 = ?", [ocorrencia.estado, ocorrencia.qr1, ocorrencia.qr2, ocorrencia.qr3, ocorrencia.qr4, ocorrencia.id, ocorrencia.iddisciplina, estadoOriginal, qr1Original]);
+
+			return (sql.affectedRows ? {
+				estado: o.estado,
+				tokenQR: o.qr1 ? (o.qr1.toString(16).padStart(8, "0") + o.qr2.toString(16).padStart(8, "0") + (o.id ^ o.qr1).toString(16).padStart(8, "0") + o.qr3.toString(16).padStart(8, "0") + o.qr4.toString(16).padStart(8, "0")) : null
+			} : "Ocorrência não encontrada");
+		});
+	}
+
+	public static async confirmarParticipacao(tokenQR: string, token: string): Promise<string> {
+		if (!tokenQR || tokenQR.length !== 40)
+			return "Código do QR inválido";
+
+		const qr1 = parseInt(tokenQR.substring(0, 8), 16),
+			qr2 = parseInt(tokenQR.substring(8, 16), 16),
+			idocorrencia = parseInt(tokenQR.substring(16, 24), 16) ^ qr1,
+			qr3 = parseInt(tokenQR.substring(24, 32), 16),
+			qr4 = parseInt(tokenQR.substring(32, 40), 16);
+
+		if (!qr1 || !qr2 || !qr3 || !qr4 || !idocorrencia)
+			return "Código do QR inválido";
+
+		const resposta = await app.request.json.get(appsettings.ssoToken + encodeURIComponent(token));
+		if (!resposta.success || !resposta.result)
+			return (resposta.result && resposta.result.toString()) || ("Erro de comunicação de rede: " + resposta.statusCode);
+
+		const json = resposta.result;
+		if (json.erro)
+			return json.erro;
+
+		let raStr: string = null;
+
+		if (json.dados.emailAcademico)
+			raStr = await IntegracaoMicroservices.obterRA(json.dados.emailAcademico);
+
+		if (!raStr || raStr === "?@#$") {
+			if (json.dados.email)
+				raStr = await IntegracaoMicroservices.obterRA(json.dados.email);
+
+			if (!raStr || raStr === "?@#$") {
+				if (json.dados.emailAcademico) {
+					if (json.dados.email && json.dados.email !== json.dados.emailAcademico)
+						return "RA não encontrado com os e-mails " + json.dados.emailAcademico + " e " + json.dados.email;
+					else
+						return "RA não encontrado com o e-mail " + json.dados.emailAcademico;
+				} else if (json.dados.email) {
+					return "RA não encontrado com o e-mail " + json.dados.email;
+				} else {
+					return "E-mail não encontrado";
+				}
+			}
+		}
+
+		const ra = parseInt(raStr);
+		if (!ra)
+			return "RA inválido: " + raStr;
+
+		const idsistema = await app.sql.connect(async (sql) => {
+			return await sql.scalar("select d.idsistema from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]) as string;
+		});
+
+		if (!idsistema)
+			return "Disciplina não encontrada ou prazo de validade do código QR expirado";
+
+		// @@@ Obter seção do aluno a partir da integração, com base no RA e em idsistema
+
+		return app.sql.connect(async (sql) => {
+			await sql.query("insert into disciplina_estudante @@@");
+
+			return null;
 		});
 	}
 
