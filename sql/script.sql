@@ -67,6 +67,8 @@ CREATE TABLE disciplina_ocorrencia (
   idusuario int NOT NULL,
   data int NOT NULL,
   limite tinyint NOT NULL,
+  minimo tinyint NOT NULL,
+  minimoMinutos smallint NOT NULL,
   estado tinyint NOT NULL,
   qr1 int NOT NULL,
   qr2 int NOT NULL,

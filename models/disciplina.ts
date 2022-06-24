@@ -18,6 +18,8 @@ interface DisciplinaOcorrencia {
 	idusuario: number;
 	data: number;
 	limite: number;
+	minimo: number;
+	minimoMinutos: number;
 	estado: number;
 	qr1: number;
 	qr2: number;
@@ -361,18 +363,41 @@ class Disciplina {
 		});
 	}
 
-	private static async obterOcorrenciaNaoConcluidaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
+	private static async obterOcorrenciaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasNaoConcluida: boolean, idocorrencia?: number, data?: number): Promise<false | DisciplinaOcorrencia> {
 		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, admin, true))
 			return false;
 
-		const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4, timestampqr from disciplina_ocorrencia where iddisciplina = ? and estado < 99", [id]);
+		const params: any[] = [id];
+
+		let query = "select id, iddisciplina, idusuario, data, limite, minimo, minimoMinutos, estado, qr1, qr2, qr3, qr4, timestampqr from disciplina_ocorrencia where iddisciplina = ?";
+
+		if (apenasNaoConcluida)
+			query += " and estado < 99";
+
+		if (idocorrencia) {
+			query += " and id = ?";
+			params.push(idocorrencia);
+		}
+
+		if (data) {
+			query += " and data = ?";
+			params.push(data);
+		}
+
+		const lista: DisciplinaOcorrencia[] = await sql.query(query, params);
 
 		return (lista && lista[0]) || null;
 	}
 
 	public static obterOcorrenciaNaoConcluida(id: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, id, idusuario, admin);
+			return await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, true);
+		});
+	}
+
+	public static obterOcorrenciaPorData(id: number, data: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
+		return app.sql.connect(async (sql) => {
+			return await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, 0, data);
 		});
 	}
 
@@ -391,19 +416,27 @@ class Disciplina {
 
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
 		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
-			return "Quantidade limite de verificações de presença inválida";
+			return "Quantidade total de verificações de presença inválida";
+
+		ocorrencia.minimo = parseInt(ocorrencia.minimo as any);
+		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 1 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite)
+			return "Quantidade mínima obrigatória de verificações de presença inválida";
+
+		ocorrencia.minimoMinutos = parseInt(ocorrencia.minimoMinutos as any);
+		if (isNaN(ocorrencia.minimoMinutos) || ocorrencia.minimoMinutos < 1 || ocorrencia.minimoMinutos > 300)
+			return "Permanência mínima em minutos inválida";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
 
 			if (o)
-				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda estão em andamento";
+				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em andamento";
 
 			try {
-				await sql.query("insert into disciplina_ocorrencia (iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4, timestampqr) values (?, ?, ?, ?, 1, 0, 0, 0, 0, 0)", [ocorrencia.iddisciplina, idusuario, ocorrencia.data, ocorrencia.limite]);
+				await sql.query("insert into disciplina_ocorrencia (iddisciplina, idusuario, data, limite, minimo, minimoMinutos, estado, qr1, qr2, qr3, qr4, timestampqr) values (?, ?, ?, ?, ?, ?, 1, 0, 0, 0, 0, 0)", [ocorrencia.iddisciplina, idusuario, ocorrencia.data, ocorrencia.limite, ocorrencia.minimo, ocorrencia.minimoMinutos]);
 
 				ocorrencia.id = await sql.scalar("select last_insert_id()") as number;
 
@@ -413,6 +446,8 @@ class Disciplina {
 					idusuario: idusuario,
 					data: ocorrencia.data,
 					limite: ocorrencia.limite,
+					minimo: ocorrencia.minimo,
+					minimoMinutos: ocorrencia.minimoMinutos,
 					estado: 1,
 					qr1: 0,
 					qr2: 0,
@@ -448,26 +483,43 @@ class Disciplina {
 
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
 		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
-			return "Quantidade limite de verificações de presença inválida";
+			return "Quantidade total de verificações de presença inválida";
+
+		ocorrencia.minimo = parseInt(ocorrencia.minimo as any);
+		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 1 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite)
+			return "Quantidade mínima obrigatória de verificações de presença inválida";
+
+		ocorrencia.minimoMinutos = parseInt(ocorrencia.minimoMinutos as any);
+		if (isNaN(ocorrencia.minimoMinutos) || ocorrencia.minimoMinutos < 1 || ocorrencia.minimoMinutos > 300)
+			return "Permanência mínima em minutos inválida";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
+			// Para permitir ajustes pós-aula
+			//const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, false, ocorrencia.id);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
 
+			// Para permitir ajustes pós-aula
+			//if (!o)
+			//	return "Nenhuma verificação de presença em andamento";
+			//
+			//if (o.id !== ocorrencia.id)
+			//	return "Só é permitido alterar a quantidade limite de verificações de presença da aula mais recente, ainda em andamento, da disciplina";
 			if (!o)
-				return "Nenhuma verificação de presença em andamento";
-
-			if (o.id !== ocorrencia.id)
-				return "Só é permitido alterar a quantidade limite de verificações de presença da aula mais recente, ainda em andamento, da disciplina";
+				return "Verificação de presença não encontrada";
 
 			if ((o.qr1 && (ocorrencia.limite < o.estado)) || (ocorrencia.limite < (o.estado - 1)))
 				return "A quantidade limite de verificações de presença deve ser maior ou igual à quantidade de códigos QR já gerados";
 
 			o.limite = ocorrencia.limite;
+			o.minimo = ocorrencia.minimo;
+			o.minimoMinutos = ocorrencia.minimoMinutos;
 
-			await sql.query("update disciplina_ocorrencia set limite = ? where id = ? and iddisciplina = ? and estado < 99", [o.limite, o.id, o.iddisciplina]);
+			// Para permitir ajustes pós-aula
+			//await sql.query("update disciplina_ocorrencia set limite = ?, minimo = ?, minimoMinutos = ? where id = ? and iddisciplina = ? and estado < 99", [o.limite, o.minimo, o.minimoMinutos, o.id, o.iddisciplina]);
+			await sql.query("update disciplina_ocorrencia set limite = ?, minimo = ?, minimoMinutos = ? where id = ? and iddisciplina = ?", [o.limite, o.minimo, o.minimoMinutos, o.id, o.iddisciplina]);
 
 			return (sql.affectedRows ? o : "Verificação de presença não encontrada");
 		});
@@ -494,7 +546,7 @@ class Disciplina {
 			return "Código QR inválido";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -586,11 +638,11 @@ class Disciplina {
 			if (!raTurma) {
 				if (emailAcademico) {
 					if (email && email !== emailAcademico)
-						return "RA não encontrado com os e-mails " + emailAcademico + " e " + email;
+						return "RA não encontrado, ou matrícula não encontrada na disciplina, com os e-mails " + emailAcademico + " e " + email;
 					else
-						return "RA não encontrado com o e-mail " + emailAcademico;
+						return "RA não encontrado, ou matrícula não encontrada na disciplina, com o e-mail " + emailAcademico;
 				} else if (email) {
-					return "RA não encontrado com o e-mail " + email;
+					return "RA não encontrado, ou matrícula não encontrada na disciplina, com o e-mail " + email;
 				} else {
 					return "E-mail não encontrado";
 				}

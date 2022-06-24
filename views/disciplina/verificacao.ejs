@@ -53,12 +53,29 @@
 			return;
 		}
 
-		let limite = 0;
+		let limite = 0,
+			minimo = 0,
+			minimoMinutos = 0;
 
 		const result = await Swal.okcancelNoIcon({
-			html: 'Tem certeza que deseja iniciar a verificação de presença da aula do dia ' + dataPtBr + '?<br/><br/>Para confirmar o início da verificação, por favor, informe a quantidade limite de verificações de presença que ocorrerão ao longo da aula.<br/><br/><label for="txtLimite">Limite de verificações de presença</label><input type="number" class="form-control" spellcheck="false" autocomplete="off" id="txtLimite" />',
+			html: `Tem certeza que deseja iniciar a verificação de presença da aula do dia ${dataPtBr}?
+				<br/><br/>
+				Para confirmar o início da verificação, por favor, informe a quantidade total de verificações de presença
+				que ocorrerão ao longo da aula e os valores mínimos requeridos dos alunos.
+				<br/><br/>
+				<label for="txtLimite">Quantidade total de verificações de presença</label>
+				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="3" />
+				<br/>
+				<label for="txtMinimo">Quantidade mínima obrigatória de verificações de presença</label>
+				<input type="number" class="form-control" id="txtMinimo" min="1" max="8" value="2" />
+				<br/>
+				<label for="txtMinimoMinutos">Permanência mínima (minutos)</label>
+				<input type="number" class="form-control" id="txtMinimoMinutos" min="1" max="300" value="60" />
+			`,
 			preConfirm: function () {
 				limite = parseInt($("#txtLimite").val());
+				minimo = parseInt($("#txtMinimo").val());
+				minimoMinutos = parseInt($("#txtMinimoMinutos").val());
 				return true;
 			}
 		});
@@ -67,7 +84,22 @@
 			return;
 
 		if (!limite || limite < 1 || limite > 8) {
-			Swal.error("A quantidade limite de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			Swal.error("A quantidade total de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		if (!minimo || minimo < 1 || minimo > 8) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		if (minimo > limite) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser maior ou igual à quantidade total de verificações de presença " + emoji.sad);
+			return;
+		}
+
+		if (!minimoMinutos || minimoMinutos < 1 || minimoMinutos > 300) {
+			Swal.error("A permanência mínima em minutos deve estar entre 1 e 300 " + emoji.sad);
 			return;
 		}
 
@@ -76,7 +108,9 @@
 		JsonWebApi.post("<%- root %>/api/disciplina/iniciarOcorrencia", {
 			iddisciplina: disciplina.id,
 			data: DataUtil.converterISOParaNumero(data),
-			limite: limite
+			limite: limite,
+			minimo: minimo,
+			minimoMinutos: minimoMinutos
 		}, function (response) {
 			if (response.success) {
 				Swal.close();
@@ -92,12 +126,27 @@
 		if (JsonWebApi.active || Swal.isVisible() || !ocorrencia)
 			return;
 
-		let limite = 0;
+		let limite = 0,
+			minimo = 0,
+			minimoMinutos = 0;
 
 		const result = await Swal.okcancelNoIcon({
-			html: 'Por favor, informe a nova quantidade limite de verificações de presença que ocorrerão ao longo da aula.<br/><br/><label for="txtLimite">Limite de verificações de presença</label><input type="number" class="form-control" spellcheck="false" autocomplete="off" id="txtLimite" value="' + ocorrencia.limite + '" />',
+			html: `Por favor, informe a quantidade total de verificações de presença
+				que ocorrerão ao longo da aula e os valores mínimos requeridos dos alunos.
+				<br/><br/>
+				<label for="txtLimite">Quantidade total de verificações de presença</label>
+				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="${ocorrencia.limite}" />
+				<br/>
+				<label for="txtMinimo">Quantidade mínima obrigatória de verificações de presença</label>
+				<input type="number" class="form-control" id="txtMinimo" min="1" max="8" value="${ocorrencia.minimo}" />
+				<br/>
+				<label for="txtMinimoMinutos">Permanência mínima (minutos)</label>
+				<input type="number" class="form-control" id="txtMinimoMinutos" min="1" max="300" value="${ocorrencia.minimoMinutos}" />
+			`,
 			preConfirm: function () {
 				limite = parseInt($("#txtLimite").val());
+				minimo = parseInt($("#txtMinimo").val());
+				minimoMinutos = parseInt($("#txtMinimoMinutos").val());
 				return true;
 			}
 		});
@@ -106,14 +155,34 @@
 			return;
 
 		if (!limite || limite < 1 || limite > 8) {
-			Swal.error("A quantidade limite de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			Swal.error("A quantidade total de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		if (!minimo || minimo < 1 || minimo > 8) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+			return;
+		}
+
+		if (minimo > limite) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser maior ou igual à quantidade total de verificações de presença " + emoji.sad);
+			return;
+		}
+
+		if (!minimoMinutos || minimoMinutos < 1 || minimoMinutos > 300) {
+			Swal.error("A permanência mínima em minutos deve estar entre 1 e 300 " + emoji.sad);
 			return;
 		}
 
 		Swal.wait();
 
-		const limiteOriginal = ocorrencia.limite;
+		const limiteOriginal = ocorrencia.limite,
+			minimoOriginal = ocorrencia.minimo,
+			minimoMinutosOriginal = ocorrencia.minimoMinutos;
+
 		ocorrencia.limite = limite;
+		ocorrencia.minimo = minimo;
+		ocorrencia.minimoMinutos = minimoMinutos;
 
 		JsonWebApi.post("<%- root %>/api/disciplina/alterarLimiteOcorrencia", ocorrencia, function (response) {
 			if (response.success) {
@@ -122,6 +191,8 @@
 				atualizarTela();
 			} else {
 				ocorrencia.limite = limiteOriginal;
+				ocorrencia.minimo = minimoOriginal;
+				ocorrencia.minimoMinutos = minimoMinutosOriginal;
 				Swal.error(response.value + " " + emoji.sad);
 			}
 		});
