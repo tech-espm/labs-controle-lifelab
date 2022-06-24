@@ -75,7 +75,7 @@ class DisciplinaApiRoute {
 		if (!u)
 			return;
 
-		const ret = await Disciplina.iniciarOcorrencia(u.id, req.body);
+		const ret = await Disciplina.iniciarOcorrencia(u.id, u.admin, req.body);
 
 		if (typeof ret === "string")
 			res.status(400);
@@ -89,7 +89,7 @@ class DisciplinaApiRoute {
 		if (!u)
 			return;
 
-		const ret = await Disciplina.alterarLimiteOcorrencia(u.id, req.body);
+		const ret = await Disciplina.alterarLimiteOcorrencia(u.id, u.admin, req.body);
 
 		if (typeof ret === "string")
 			res.status(400);
@@ -103,7 +103,7 @@ class DisciplinaApiRoute {
 		if (!u)
 			return;
 
-		const ret = await Disciplina.proximoPasso(u.id, req.body);
+		const ret = await Disciplina.proximoPasso(u.id, u.admin, req.body);
 
 		if (typeof ret === "string")
 			res.status(400);

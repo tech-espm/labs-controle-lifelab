@@ -341,24 +341,30 @@ class Disciplina {
 		});
 	}
 
-	private static async usuarioTemDisciplinaInterno(sql: app.Sql, id: number, idusuario: number, apenasAncora: boolean): Promise<boolean> {
+	private static async usuarioTemDisciplinaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<boolean> {
+		if (admin)
+			return true;
+
 		const ancora: number = await sql.scalar("select du.ancora from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario]);
 		return (ancora === 1) || ((ancora === 0) && !apenasAncora);
 	}
 
-	private static async usuarioTemDisciplinaObjInterno(sql: app.Sql, id: number, idusuario: number, apenasAncora: boolean): Promise<any> {
-		const disciplinas: any[] = await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario]);
-		return (disciplinas && disciplinas.length && (disciplinas[0].ancora || !apenasAncora)) ? disciplinas[0] : null;
+	private static async usuarioTemDisciplinaObjInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
+		const disciplinas: any[] = (admin ?
+			await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, coalesce(du.ancora, 0) ancora, coalesce(du.turma, '') turma from disciplina d left join disciplina_usuario du on du.iddisciplina = d.id and du.idusuario = ? where d.id = ? and d.exclusao is null", [idusuario, id]) :
+			await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario])
+		);
+		return (disciplinas && disciplinas.length && (admin || disciplinas[0].ancora || !apenasAncora)) ? disciplinas[0] : null;
 	}
 
-	public static usuarioTemDisciplinaObj(id: number, idusuario: number, apenasAncora: boolean): Promise<any> {
+	public static usuarioTemDisciplinaObj(id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.usuarioTemDisciplinaObjInterno(sql, id, idusuario, apenasAncora);
+			return await Disciplina.usuarioTemDisciplinaObjInterno(sql, id, idusuario, admin, apenasAncora);
 		});
 	}
 
-	private static async obterOcorrenciaNaoConcluidaInterno(sql: app.Sql, id: number, idusuario: number): Promise<false | DisciplinaOcorrencia> {
-		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, true))
+	private static async obterOcorrenciaNaoConcluidaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
+		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, admin, true))
 			return false;
 
 		const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, estado, qr1, qr2, qr3, qr4, timestampqr from disciplina_ocorrencia where iddisciplina = ? and estado < 99", [id]);
@@ -366,13 +372,13 @@ class Disciplina {
 		return (lista && lista[0]) || null;
 	}
 
-	public static obterOcorrenciaNaoConcluida(id: number, idusuario: number): Promise<false | DisciplinaOcorrencia> {
+	public static obterOcorrenciaNaoConcluida(id: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, id, idusuario);
+			return await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, id, idusuario, admin);
 		});
 	}
 
-	public static async iniciarOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
+	public static async iniciarOcorrencia(idusuario: number, admin: boolean, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -390,7 +396,7 @@ class Disciplina {
 			return "Quantidade limite de verificações de presença inválida";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -430,7 +436,7 @@ class Disciplina {
 		});
 	}
 
-	public static async alterarLimiteOcorrencia(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
+	public static async alterarLimiteOcorrencia(idusuario: number, admin: boolean, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -447,7 +453,7 @@ class Disciplina {
 			return "Quantidade limite de verificações de presença inválida";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -469,7 +475,7 @@ class Disciplina {
 		});
 	}
 
-	public static async proximoPasso(idusuario: number, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
+	public static async proximoPasso(idusuario: number, admin: boolean, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";
 
@@ -490,7 +496,7 @@ class Disciplina {
 			return "Código QR inválido";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario);
+			const o = await Disciplina.obterOcorrenciaNaoConcluidaInterno(sql, ocorrencia.iddisciplina, idusuario, admin);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";

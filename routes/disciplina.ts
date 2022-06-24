@@ -92,7 +92,7 @@ class DisciplinaRoute {
 					layout: "layout-sem-form",
 					usuario: u
 				});
-			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, true)) || (ocorrencia = await Disciplina.obterOcorrenciaNaoConcluida(id, u.id)) === false)
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, u.admin, true)) || (ocorrencia = await Disciplina.obterOcorrenciaNaoConcluida(id, u.id, u.admin)) === false)
 				res.redirect(app.root + "/acesso");
 			else
 				res.render("disciplina/verificacao", {
@@ -130,7 +130,7 @@ class DisciplinaRoute {
 					layout: "layout-sem-form",
 					usuario: u
 				});
-			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, false)))
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, u.admin, false)))
 				res.redirect(app.root + "/acesso");
 			else
 				res.render("disciplina/presenca", {
