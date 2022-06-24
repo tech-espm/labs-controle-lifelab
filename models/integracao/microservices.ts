@@ -83,6 +83,22 @@ export = class IntegracaoMicroservices {
 		return r.result;
 	}
 
+	public static async obterRATurma(email: string, idcurso: string): Promise<{ emplid: string, class_section: string }> {
+		if (!email || !idcurso)
+			return null;
+
+		const tokenHeader = await IntegracaoMicroservices.token.obterHeader();
+		if (!tokenHeader)
+			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
+
+		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterRATurma + encodeURIComponent(email) + "&crse_id=" + encodeURIComponent(idcurso), { headers: { "Authorization": tokenHeader } });
+
+		if (!r.success)
+			IntegracaoMicroservices.throwErro(r.result);
+
+		return r.result[0] || null;
+	}
+
 	public static async obterPresencas(dataISONumerica: number, idsistema: string): Promise<any[]> {
 		if (!dataISONumerica || !idsistema)
 			return null;
@@ -92,22 +108,6 @@ export = class IntegracaoMicroservices {
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
 		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterPresencas + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
-
-		if (!r.success)
-			IntegracaoMicroservices.throwErro(r.result);
-
-		return r.result;
-	}
-
-	public static async obterTeste(ra: number, idcurso: string): Promise<any[]> {
-		if (!ra || !idcurso)
-			return null;
-
-		const tokenHeader = await IntegracaoMicroservices.token.obterHeader();
-		if (!tokenHeader)
-			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
-
-		const r = await app.request.json.get("https://microserviceshml.espm.br/api/Student/GetCredenciamentos?strm=2201&emplid=" + ra + "&crseid=" + encodeURIComponent(idcurso), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
 			IntegracaoMicroservices.throwErro(r.result);

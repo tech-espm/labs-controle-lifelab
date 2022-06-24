@@ -145,8 +145,6 @@ class Disciplina {
 		if (!semestre)
 			throw new Error("Semestre inválido");
 
-		//const teste = await IntegracaoMicroservices.obterPresencas(20220512, "005560-01-2201-LLB-LL03-02748");
-		const teste = await IntegracaoMicroservices.obterTeste(148278, "005561");
 		const disciplinas = await IntegracaoMicroservices.obterDisciplinas(ano, semestre);
 		if (!disciplinas)
 			throw new Error("Erro de comunicação com o servidor de integração");
@@ -563,8 +561,11 @@ class Disciplina {
 			return json.erro;
 
 		const nome = (json.dados.nome || "").trim().toUpperCase(),
-			emailAcademico = (json.dados.emailAcademico || "").trim().toLowerCase(),
-			email = (json.dados.email || "").trim().toLowerCase();
+			emailAcademico = (json.dados.emailAcademico || "").trim().toLowerCase();
+
+		let email = (json.dados.email || "").trim().toLowerCase();
+		if (email === emailAcademico)
+			email = null;
 
 		if (!nome)
 			return "Nome não encontrado para o e-mail " + emailAcademico;
@@ -576,19 +577,13 @@ class Disciplina {
 		if (!ocorrencias || !ocorrencias.length)
 			return "Disciplina não encontrada ou prazo de validade do código QR expirado";
 
-		// @@@ Obter seção do aluno a partir da integração, com base no RA e em idcurso
-		const secao = "LSPA";
+		let raTurma = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencias[0].idcurso);
 
-		let raStr: string = null;
-
-		if (emailAcademico)
-			raStr = await IntegracaoMicroservices.obterRA(emailAcademico);
-
-		if (!raStr || raStr === "?@#$") {
+		if (!raTurma) {
 			if (email)
-				raStr = await IntegracaoMicroservices.obterRA(email);
+				raTurma = await IntegracaoMicroservices.obterRATurma(email, ocorrencias[0].idcurso);
 
-			if (!raStr || raStr === "?@#$") {
+			if (!raTurma) {
 				if (emailAcademico) {
 					if (email && email !== emailAcademico)
 						return "RA não encontrado com os e-mails " + emailAcademico + " e " + email;
@@ -602,12 +597,12 @@ class Disciplina {
 			}
 		}
 
-		const ra = parseInt(raStr);
+		const ra = parseInt(raTurma.emplid);
 		if (!ra)
-			return "RA inválido: " + raStr;
+			return "RA inválido: " + raTurma.emplid;
 
 		return app.sql.connect(async (sql) => {
-			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, secao, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, secao, DataUtil.horarioDeBrasiliaISOComHorario()]);
+			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, (raTurma.class_section || "").trim().toUpperCase(), DataUtil.horarioDeBrasiliaISOComHorario()]);
 
 			return null;
 		});

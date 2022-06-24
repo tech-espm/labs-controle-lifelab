@@ -84,9 +84,9 @@ CREATE TABLE disciplina_ocorrencia_estudante (
   estado tinyint NOT NULL,
   ra int NOT NULL,
   email varchar(100) NOT NULL,
-  emailalt varchar(100) NOT NULL,
+  emailalt varchar(100) NULL,
   nome varchar(100) NOT NULL,
-  secao varchar(32) NOT NULL,
+  turma varchar(32) NOT NULL,
   criacao datetime NOT NULL,
   PRIMARY KEY (id),
   KEY disciplina_ocorrencia_estudante_idocorrencia_IX (idocorrencia)
