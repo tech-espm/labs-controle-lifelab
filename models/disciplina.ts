@@ -622,18 +622,20 @@ class Disciplina {
 		if (!nome)
 			return "Nome não encontrado para o e-mail " + emailAcademico;
 
-		const ocorrencias: { idcurso: string, estado: number }[] = await app.sql.connect(async (sql) => {
-			return await sql.query("select d.idcurso, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
+		const ocorrencias: { idcurso: string, ano: number, semestre: number, estado: number }[] = await app.sql.connect(async (sql) => {
+			return await sql.query("select d.idcurso, d.ano, d.semestre, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
 		});
 
 		if (!ocorrencias || !ocorrencias.length)
 			return "Disciplina não encontrada ou prazo de validade do código QR expirado";
 
-		let raTurma = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencias[0].idcurso);
+		const ocorrencia = ocorrencias[0];
+
+		let raTurma = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
 
 		if (!raTurma) {
 			if (email)
-				raTurma = await IntegracaoMicroservices.obterRATurma(email, ocorrencias[0].idcurso);
+				raTurma = await IntegracaoMicroservices.obterRATurma(email, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
 
 			if (!raTurma) {
 				if (emailAcademico) {

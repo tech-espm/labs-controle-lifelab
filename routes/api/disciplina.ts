@@ -1,5 +1,6 @@
 ﻿import app = require("teem");
 import Disciplina = require("../../models/disciplina");
+import IntegracaoMicroservices = require("../../models/integracao/microservices");
 import Usuario = require("../../models/usuario");
 
 class DisciplinaApiRoute {
@@ -109,6 +110,25 @@ class DisciplinaApiRoute {
 			res.status(400);
 
 		res.json(ret);
+	}
+
+	public static async obterPresencas(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const disciplina = await Disciplina.usuarioTemDisciplinaObj(parseInt(req.query["id"] as string), u.id, u.admin, false);
+		if (disciplina === false) {
+			res.status(403).json("Não permitido");
+			return;
+		}
+
+		if (!disciplina) {
+			res.status(400).json("Disciplina não encontrada");
+			return;
+		}
+
+		res.contentType("application/json").send(await IntegracaoMicroservices.obterPresencas(parseInt(req.query["data"] as string), disciplina.idsistema));
 	}
 }
 

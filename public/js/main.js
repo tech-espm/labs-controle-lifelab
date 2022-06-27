@@ -196,11 +196,14 @@ window.prepareCustomFilter = function (table, tableId, customFilterLabel, placeh
 	}
 };
 window.format2 = function (x) {
-	return ((x < 10) ? ("0" + x) : x);
+	return ((x < 10) ? ("0" + x) : x.toString());
 };
-window.formatCurrency = function (x, digits) {
-	return "R$ " + x.toFixed(digits | 0).replace(".", ",");
-};
+window.formatCurrency = (function () {
+	var r = /\B(?=(\d{3})+(?!\d))/g;
+	return function (x, digits) {
+		return "R$ " + x.toFixed(digits | 0).replace(".", ",").replace(r, ".");
+	}
+})();
 window.formatPercent = function (x, digits) {
 	return x.toFixed(digits | 0).replace(".", ",") + "%";
 };

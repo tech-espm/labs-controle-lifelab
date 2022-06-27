@@ -83,7 +83,7 @@ export = class IntegracaoMicroservices {
 		return r.result;
 	}
 
-	public static async obterRATurma(email: string, idcurso: string): Promise<{ emplid: string, class_section: string }> {
+	public static async obterRATurma(email: string, idcurso: string, ano: number, semestre: number): Promise<{ emplid: string, class_section: string }> {
 		if (!email || !idcurso)
 			return null;
 
@@ -91,7 +91,7 @@ export = class IntegracaoMicroservices {
 		if (!tokenHeader)
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
-		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterRATurma + encodeURIComponent(email) + "&crse_id=" + encodeURIComponent(idcurso), { headers: { "Authorization": tokenHeader } });
+		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterRATurma + encodeURIComponent(email) + "&crse_id=" + encodeURIComponent(idcurso) + "&strm=" + (ano % 100).toString().padStart(2, "0") + semestre.toString().padStart(2, "0"), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
 			IntegracaoMicroservices.throwErro(r.result);
@@ -99,7 +99,7 @@ export = class IntegracaoMicroservices {
 		return r.result[0] || null;
 	}
 
-	public static async obterPresencas(dataISONumerica: number, idsistema: string): Promise<any[]> {
+	public static async obterPresencas(dataISONumerica: number, idsistema: string): Promise<string> {
 		if (!dataISONumerica || !idsistema)
 			return null;
 
@@ -107,10 +107,10 @@ export = class IntegracaoMicroservices {
 		if (!tokenHeader)
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
-		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterPresencas + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
+		const r = await app.request.string.get(appsettings.integracaoMicroservicesPathObterPresencas + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
-			IntegracaoMicroservices.throwErro(r.result);
+			IntegracaoMicroservices.throwErro(JSON.parse(r.result));
 
 		return r.result;
 	}
