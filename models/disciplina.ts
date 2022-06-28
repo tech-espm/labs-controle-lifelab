@@ -395,9 +395,17 @@ class Disciplina {
 		});
 	}
 
-	public static obterOcorrenciaPorData(id: number, data: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
+	public static obterOcorrenciaConcluidaPorData(id: number, data: number, idusuario: number, admin: boolean): Promise<string | DisciplinaOcorrencia> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, 0, data);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, 0, data);
+
+			if (o === false)
+				return "Sem permissão para controlar a verificação de presença da disciplina";
+
+			if (o.estado < 99)
+				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em andamento";
+
+			return o;
 		});
 	}
 
@@ -659,6 +667,23 @@ class Disciplina {
 			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, (raTurma.class_section || "").trim().toUpperCase(), DataUtil.horarioDeBrasiliaISOComHorario()]);
 
 			return null;
+		});
+	}
+
+	public static async obterParticipacoes(id: number, idocorrencia: number, idusuario: number, admin: boolean): Promise<string | any[]> {
+		return app.sql.connect(async (sql) => {
+			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, idocorrencia);
+
+			if (o === false)
+				return "Sem permissão para controlar a verificação de presença da disciplina";
+
+			if (!o)
+				return "Verificação de presença não encontrada";
+
+			if (o.estado < 99)
+				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em andamento";
+
+			return await sql.query("select estado, ra, email, nome, turma from disciplina_ocorrencia_estudante where idocorrencia = ?", [o.id]);
 		});
 	}
 };

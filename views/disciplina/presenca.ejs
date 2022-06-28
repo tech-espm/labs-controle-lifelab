@@ -1,0 +1,88 @@
+<div class="row no-gutters align-items-center">
+	<div class="col mr-2">
+		<div class="text-xs font-weight-bold text-primary text-uppercase mb-1"><%- disciplina.ano %>-<%- disciplina.semestre %> / <%= disciplina.turma %></div>
+		<div class="h5 mb-0 font-weight-bold text-gray-800"><%= disciplina.idsecao %> - <%= disciplina.nome %></div>
+	</div>
+	<div class="col-auto">
+		<i class="fas fa-book fa-2x text-gray-300"></i>
+	</div>
+</div>
+
+<hr />
+
+<div class="row">
+	<div class="col-sm-4 offset-sm-4 text-center">
+		<div class="form-group">
+			<label for="data">Data da Aula</label>
+			<input id="data" class="form-control text-center" type="text" spellcheck="false" />
+		</div>
+
+		<button type="button" class="btn btn-lg btn-primary" id="btnVerificar" onclick="verificarPresencas()"><i class="fa fa-check"></i> Verificar Presenças</button>
+	</div>
+</div>
+
+<%- contentFor("scripts") %>
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	const disciplina = <%- JSON.stringify(disciplina) %>;
+	let ocorrencia = null,
+		participacoes = null,
+		participacoesZoom = null;
+
+	prepareDatePicker("#data");
+
+	setDatePickerValue("#data", '14/04/2022');//DataUtil.horarioLocalBr(-24 * 60 * 60));
+
+	function atualizarTela() {
+
+	}
+
+	function verificarPresencas() {
+		if (JsonWebApi.active)
+			return;
+
+		const data = DataUtil.converterDataISO($("#data").val());
+		if (!data) {
+			Swal.error("Data da aula inválida! " + emoji.sad);
+			return;
+		}
+
+		Swal.wait();
+
+		JsonWebApi.get("<%- root %>/api/disciplina/obterOcorrenciaConcluidaPorData", function (response) {
+			if (response.success) {
+				const o = response.value;
+
+				JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoes", function (response) {
+					if (response.success) {
+						const p = response.value;
+
+						JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoesZoom", function (response) {
+							if (response.success) {
+								Swal.close();
+
+								ocorrencia = o;
+								participacoes = p;
+								participacoesZoom = response.value;
+
+								atualizarTela();
+							} else {
+								Swal.error(response.value + " " + emoji.sad);
+							}
+						}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+
+					} else {
+						Swal.error(response.value + " " + emoji.sad);
+					}
+				}, "id", disciplina.id, "idocorrencia", o.id);
+
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+	}
+
+	//]]>
+</script>

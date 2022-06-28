@@ -6,11 +6,11 @@ import Token = require("./token");
 export = class IntegracaoMicroservices {
 	private static readonly token: Token = new Token(appsettings.integracaoMicroservicesPathGerarToken, appsettings.integracaoMicroservicesTokenCredentialsJson);
 
-	private static throwErro(message?: any) {
+	private static throwErro(message?: any, alternativa?: string) {
 		if (message && (typeof message !== "string"))
 			message = (message.error || message.message || message.mensagem || JSON.stringify(message));
 
-		const err = new Error(message || "Erro");
+		const err = new Error(message || alternativa || "Erro");
 		err["microservices"] = err.message;
 		throw err;
 	}
@@ -99,7 +99,7 @@ export = class IntegracaoMicroservices {
 		return r.result[0] || null;
 	}
 
-	public static async obterPresencas(dataISONumerica: number, idsistema: string): Promise<string> {
+	public static async obterParticipacoesZoom(dataISONumerica: number, idsistema: string): Promise<string> {
 		if (!dataISONumerica || !idsistema)
 			return null;
 
@@ -107,10 +107,10 @@ export = class IntegracaoMicroservices {
 		if (!tokenHeader)
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
-		const r = await app.request.string.get(appsettings.integracaoMicroservicesPathObterPresencas + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
+		const r = await app.request.string.get(appsettings.integracaoMicroservicesPathObterParticipacoesZoom + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
-			IntegracaoMicroservices.throwErro(JSON.parse(r.result));
+			IntegracaoMicroservices.throwErro(JSON.parse(r.result), "Erro na integração com a base do Zoom");
 
 		return r.result;
 	}

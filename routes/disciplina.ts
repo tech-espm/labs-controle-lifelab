@@ -137,6 +137,7 @@ class DisciplinaRoute {
 					titulo: "Presenças da Disciplina",
 					layout: "layout-card",
 					datepicker: true,
+					datatables: true,
 					usuario: u,
 					disciplina
 				});

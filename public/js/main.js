@@ -199,14 +199,45 @@ window.format2 = function (x) {
 	return ((x < 10) ? ("0" + x) : x.toString());
 };
 window.formatCurrency = (function () {
-	var r = /\B(?=(\d{3})+(?!\d))/g;
-	return function (x, digits) {
-		return "R$ " + x.toFixed(digits | 0).replace(".", ",").replace(r, ".");
-	}
+	var expr = /\B(?=(\d{3})+(?!\d))/g, thousands = (window.currentLanguageId === 1 ? "," : ".");
+	window.formatSizeLong = function (size) {
+		//if (size < 16384)
+		//	return size + " bytes";
+		//return ((size * 0.0009765625) | 0).toString().replace(expr, ".") + " KB";
+		if (size) {
+			size = (size * 0.0009765625) | 0;
+			if (size <= 0)
+				size = 1;
+		}
+		return size.toString().replace(expr, thousands) + " KB";
+	};
+	window.formatSize = function (size) {
+		//if (size < 16384)
+		//	return size + " bytes";
+		//return (size >>> 10).toString().replace(expr, ".") + " KB";
+		if (size) {
+			size >>>= 10;
+			if (size <= 0)
+				size = 1;
+		}
+		return size.toString().replace(expr, thousands) + " KB";
+	};
+	window.formatNumber = (window.currentLanguageId === 1 ? function (x, digits) {
+		return x.toFixed(digits | 0).replace(expr, thousands);
+	} : function (x, digits) {
+		return x.toFixed(digits | 0).replace(".", ",").replace(expr, thousands);
+	});
+	window.formatPercent = (window.currentLanguageId === 1 ? function (x, digits) {
+		return x.toFixed(digits | 0) + "%";
+	} : function (x, digits) {
+		return x.toFixed(digits | 0).replace(".", ",") + "%";
+	});
+	return (window.currentLanguageId === 1 ? function (x, digits) {
+		return "R$ " + x.toFixed(digits | 0).replace(expr, thousands);
+	} : function (x, digits) {
+		return "R$ " + x.toFixed(digits | 0).replace(".", ",").replace(expr, thousands);
+	});
 })();
-window.formatPercent = function (x, digits) {
-	return x.toFixed(digits | 0).replace(".", ",") + "%";
-};
 window.formatHex8 = function (x) {
 	var s = "0000000" + x.toString(16).toLowerCase();
 	return s.substr(s.length - 8);
@@ -219,37 +250,6 @@ window.formatDuration = function (duration) {
 	s = s % 60;
 	return format2(m) + ":" + format2(s);
 };
-window.formatSize = (function () {
-	var expr = /\B(?=(\d{3})+(?!\d))/g, thousands = (window.currentLanguageId === 1 ? "." : ",");
-	window.formatSizeLong = function (size) {
-		//if (size < 16384)
-		//	return size + " bytes";
-		//return ((size * 0.0009765625) | 0).toString().replace(expr, ".") + " KB";
-		if (size) {
-			size = (size * 0.0009765625) | 0;
-			if (size <= 0)
-				size = 1;
-		}
-		return size.toString().replace(expr, thousands) + " KB";
-	};
-	return function (size) {
-		//if (size < 16384)
-		//	return size + " bytes";
-		//return (size >>> 10).toString().replace(expr, ".") + " KB";
-		if (size) {
-			size >>>= 10;
-			if (size <= 0)
-				size = 1;
-		}
-		return size.toString().replace(expr, thousands) + " KB";
-	};
-})();
-window.formatNumber = (function () {
-	var expr = /\B(?=(\d{3})+(?!\d))/g;
-	return function (x) {
-		return x.toString().replace(expr, ".");
-	};
-})();
 window.formatHour = function (x) {
 	return format2(x >>> 6) + ":" + format2(x & 63);
 };

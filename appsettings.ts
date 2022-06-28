@@ -36,5 +36,5 @@ export = {
 	integracaoMicroservicesPathObterCursos: process.env.app_integracaoMicroservicesPathObterCursos as string,
 	integracaoMicroservicesPathObterDisciplinas: process.env.app_integracaoMicroservicesPathObterDisciplinas as string,
 	integracaoMicroservicesPathObterRATurma: process.env.app_integracaoMicroservicesPathObterRATurma as string,
-	integracaoMicroservicesPathObterPresencas: process.env.app_integracaoMicroservicesPathObterPresencas as string
+	integracaoMicroservicesPathObterParticipacoesZoom: process.env.app_integracaoMicroservicesPathObterParticipacoesZoom as string
 };
