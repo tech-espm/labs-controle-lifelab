@@ -139,7 +139,8 @@ class DisciplinaRoute {
 					datepicker: true,
 					datatables: true,
 					usuario: u,
-					disciplina
+					disciplina,
+					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
 				});
 		}
 	}

@@ -2676,7 +2676,7 @@ Swal.okcancelNoIcon = function (message, title) {
 		return fire.apply(Swal, arguments);
 	};
 
-	Swal.wait = function (message) {
+	var waitInternal = function (message, dark) {
 		var options = message;
 
 		if (!options)
@@ -2697,6 +2697,13 @@ Swal.okcancelNoIcon = function (message, title) {
 		if (!options.allowEnterKey)
 			options.allowEnterKey = false;
 
+		if (!dark) {
+			if (!options.showClass)
+				options.showClass = { backdrop: "" };
+			else
+				options.showClass.backdrop = "";
+		}
+
 		var didOpen = options.didOpen;
 
 		options.didOpen = function () {
@@ -2710,5 +2717,13 @@ Swal.okcancelNoIcon = function (message, title) {
 		waitCalled = true;
 
 		return Swal.fire(options);
+	};
+
+	Swal.wait = function (message) {
+		return waitInternal(message, false);
+	};
+
+	Swal.waitDark = function (message) {
+		return waitInternal(message, true);
 	};
 })();

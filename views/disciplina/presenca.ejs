@@ -106,6 +106,7 @@
 		participacoes = null,
 		participacoesZoom = null,
 		dataEscolhida = null,
+		emailProfessores = <%- JSON.stringify(emailProfessores || []) %>,
 		dados = null;
 
 	prepareDatePicker("#data");
@@ -122,10 +123,11 @@
 			order: [[0, "asc"]],
 			deferRender: true,
 			columns: [
-				{ title: "Nome", render: encode, data: "nome_aluno" },
+				{ title: "Nome", render: encode, data: "nomenorm" },
 				{ title: "E-mail", render: encode, data: "email_aluno" },
 				{ title: "Presença (Minutos)", "type": "number", data: function (row, type, set, meta) { return Math.round(row.duracao_presenca_aluno / 60); } },
-				{ title: "RA", "type":"number", data: "ra", render: function (v, type, row) { return (v || ""); } }
+				{ title: "RA", "type":"number", data: "ra", render: function (v, type, row) { return (v || ""); } },
+				{ title: "Descrição Zoom", render: encode, data: "nome_aluno" },
 			],
 			data: participacoesZoom,
 			export: { title: "Entradas do Zoom sem correspondência para o dia " + dataEscolhida }
@@ -181,7 +183,7 @@
 		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
 			const z = participacoesZoom[i];
 
-			if (z.nome_aluno == nomenorm) {
+			if (z.nomenorm == nomenorm) {
 				segundos += z.duracao_presenca_aluno;
 				participacoesZoom.splice(i, 1);
 			}
@@ -244,22 +246,45 @@
 			return;
 		}
 
+		const emails = new Set();
+		for (i = emailProfessores.length - 1; i >= 0; i--)
+			emails.add(emailProfessores[i].email);
+
 		// Como os dados do Zoom são meio sem padrão, primeiro organiza
 		// um pouco, antes de sair buscando as semelhanças
 		for (i = participacoesZoom.length - 1; i >= 0; i--) {
 			const z = participacoesZoom[i];
 
 			z.email_aluno = (z.email_aluno || "").trim().toLowerCase();
-			z.nome_aluno = normalizeAccent(z.nome_aluno || "");
 
-			const u = z.nome_aluno.lastIndexOf("_");
+			if (emails.has(z.email_aluno)) {
+				participacoesZoom.splice(i, 1);
+				continue;
+			}
+
+			z.nomenorm = normalizeAccent(z.nome_aluno || "");
+
+			// Existem alguns casos:
+			// NOME SOBRENOME
+			// NOME SOBRENOME_12345678
+			// NOME SOBRENOME_12345678_NOME.SOBRENOME
+			let u = z.nomenorm.indexOf("_");
 			let ra = 0;
 			if (u >= 0) {
-				ra = parseInt(z.nome_aluno.substring(u + 1));
-				if (isNaN(ra))
+				ra = parseInt(z.nomenorm.substring(u + 1));
+				if (isNaN(ra)) {
 					ra = 0;
-				else
-					z.nome_aluno = z.nome_aluno.substring(0, u);
+					u = z.nomenorm.lastIndexOf("_");
+					if (u >= 0) {
+						ra = parseInt(z.nomenorm.substring(u + 1));
+						if (isNaN(ra))
+							ra = 0;
+						else
+							z.nomenorm = z.nomenorm.substring(0, u);
+					}
+				} else {
+					z.nomenorm = z.nomenorm.substring(0, u);
+				}
 			}
 			z.ra = ra;
 		}
@@ -287,6 +312,19 @@
 			p.zoom = Math.round(p.zoom / 60);
 			if (p.zoom < minimoMinutos)
 				p.presente = 0;
+		}
+
+		participacoesZoom.sort((a, b) => (a.nomenorm == b.nomenorm) ? (a.email_aluno < b.email_aluno ? -1 : 1) : (a.nomenorm < b.nomenorm ? -1 : 1));
+
+		// Agrupa o restante só se o nome e o email baterem
+		for (i = participacoesZoom.length - 2; i >= 0 && participacoesZoom.length > 1; i--) {
+			const z1 = participacoesZoom[i],
+				z2 = participacoesZoom[i + 1];
+
+			if (z1.nomenorm == z2.nomenorm && z1.email_aluno == z2.email_aluno) {
+				z1.duracao_presenca_aluno += z2.duracao_presenca_aluno;
+				participacoesZoom.splice(i + 1, 1);
+			}
 		}
 
 		if (!participacoesZoom.length)

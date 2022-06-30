@@ -27,10 +27,10 @@
 		<button type="button" class="btn btn-lg btn-outline-primary mb-3" id="btnAlterarLimite" onclick="alterarLimiteOcorrencia()" style="display: none;"><i class="fa fa-edit"></i> Alterar Limite de Verificações</button>
 	</div>
 	<div>
-		<button type="button" class="btn btn-lg btn-primary mb-3" id="btnAcao" onclick="proximoPasso()" style="display: none;"><i class="fa fa-check" id="iconeAcao"></i> <span id="labelAcao">Iniciar Aula</span></button>
+		<button type="button" class="btn btn-lg btn-primary" id="btnAcao" onclick="proximoPasso()" style="display: none;"><i class="fa fa-check" id="iconeAcao"></i> <span id="labelAcao">Iniciar Aula</span></button>
 	</div>
 	<div>
-		<a target="_blank" class="btn btn-lg btn-success mb-3" id="btnExibirQR" style="display: none;"><i class="fa fa-qrcode"></i> <span id="labelExibirQR">Exibir QR</span></a>
+		<a target="_blank" class="btn btn-lg btn-success mt-3" id="btnExibirQR" style="display: none;"><i class="fa fa-qrcode"></i> <span id="labelExibirQR">Exibir QR</span></a>
 	</div>
 </div>
 
@@ -264,7 +264,7 @@
 
 	function atualizarTela() {
 		if (ocorrencia && ocorrencia.estado === 99) {
-			Swal.success("Verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true) + " encerrada com sucesso! " + emoji.happy);
+			Swal.success("Verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(ocorrencia.data), true) + " foi encerrada com sucesso! " + emoji.happy);
 			ocorrencia = null;
 		}
 
