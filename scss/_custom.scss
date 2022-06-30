@@ -139,6 +139,10 @@ table.dataTable {
 	border-bottom: $table-border-width solid $table-border-color;
 }
 
+.table-row-pointer > tbody > tr {
+	cursor: pointer;
+}
+
 .op-0 {
 	opacity: 0 !important;
 }

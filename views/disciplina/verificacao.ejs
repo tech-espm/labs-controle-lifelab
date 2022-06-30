@@ -61,7 +61,7 @@
 			html: `Tem certeza que deseja iniciar a verificação de presença da aula do dia ${dataPtBr}?
 				<br/><br/>
 				Para confirmar o início da verificação, por favor, informe a quantidade total de verificações de presença
-				que ocorrerão ao longo da aula e os valores mínimos requeridos dos alunos.
+				que ocorrerão ao longo da aula e os valores mínimos requeridos dos estudantes.
 				<br/><br/>
 				<label for="txtLimite">Quantidade total de verificações de presença</label>
 				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="3" />
@@ -132,7 +132,7 @@
 
 		const result = await Swal.okcancelNoIcon({
 			html: `Por favor, informe a quantidade total de verificações de presença
-				que ocorrerão ao longo da aula e os valores mínimos requeridos dos alunos.
+				que ocorrerão ao longo da aula e os valores mínimos requeridos dos estudantes.
 				<br/><br/>
 				<label for="txtLimite">Quantidade total de verificações de presença</label>
 				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="${ocorrencia.limite}" />

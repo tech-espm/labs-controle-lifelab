@@ -10,14 +10,88 @@
 
 <hr />
 
-<div class="row">
-	<div class="col-sm-4 offset-sm-4 text-center">
+<div class="row text-center">
+	<div class="col-md col-lg-4 offset-lg-2">
 		<div class="form-group">
 			<label for="data">Data da Aula</label>
 			<input id="data" class="form-control text-center" type="text" spellcheck="false" />
 		</div>
 
-		<button type="button" class="btn btn-lg btn-primary" id="btnVerificar" onclick="verificarPresencas()"><i class="fa fa-check"></i> Verificar Presenças</button>
+		<button type="button" class="btn btn-primary btn-block" onclick="verificarPresencas();"><i class="fa fa-check"></i> Verificar Presenças</button>
+	</div>
+	<div class="col-md col-lg-4">
+		<hr class="d-md-none" />
+
+		<div class="form-group">
+			<label for="idparticipacao">Protocolo do Estudante</label>
+			<input id="idparticipacao" class="form-control text-center" type="number"  />
+		</div>
+
+		<button type="button" class="btn btn-secondary btn-block" onclick="verificarIdparticipacao();"><i class="fa fa-id-card"></i> Verificar Protocolo</button>
+	</div>
+</div>
+
+<div class="text-center">
+</div>
+
+<div id="container" style="display: none;">
+	<div class="text-center">
+		<hr class="my-5" />
+
+		<div class="row mb-5">
+			<div class="col-md">
+				<p class="mb-3">
+					<b>Quantidade total de verificações de presença (QR)</b>
+					<br/>
+					<span id="labelLimite"></span>
+				</p>
+				<p class="mb-3">
+					<b>Quantidade mínima obrigatória de verificações de presença (QR)</b>
+					<br/>
+					<span id="labelMinimo"></span>
+				</p>
+				<p class="mb-3 mb-md-0">
+					<b>Permanência mínima (minutos)</b>
+					<br/>
+					<span id="labelMinimoMinutos"></span>
+				</p>
+			</div>
+			<div class="col-md">
+				<div class="h-100 d-flex flex-column justify-content-center">
+					<button type="button" id="btnZoom" class="btn btn-secondary btn-block mb-3" onclick="exibirZoom()"><i class="fa fa-database"></i> Exibir Entradas do Zoom sem Correspondência</button>
+
+					<select id="selectTipoPresenca" class="form-control text-center mb-3" onchange="atualizarTela()">
+						<option value="0">Exibir Presentes e Faltantes</option>
+						<option value="1">Exibir Apenas Presentes</option>
+						<option value="2">Exibir Apenas Faltantes</option>
+					</select>
+
+					<label class="form-group form-check mb-0">
+						<input type="checkbox" class="form-check-input" id="chkTodasTurmas" onchange="atualizarTela()" />
+						Todas as Turmas
+					</label>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="container-tabela" style="margin-left: -1.25rem; margin-right: -1.25rem;"></div>
+</div>
+
+<div class="modal fade" id="modalZoom" tabindex="-1" aria-labelledby="labelModalZoom" aria-hidden="true">
+	<div class="modal-dialog modal-xl">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="labelModalZoom">Entradas sem Correspondência</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body px-0" id="modalZoomBody"></div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -27,23 +101,287 @@
 	"use strict";
 
 	const disciplina = <%- JSON.stringify(disciplina) %>;
+
 	let ocorrencia = null,
 		participacoes = null,
-		participacoesZoom = null;
+		participacoesZoom = null,
+		dataEscolhida = null,
+		dados = null;
 
 	prepareDatePicker("#data");
 
-	setDatePickerValue("#data", '14/04/2022');//DataUtil.horarioLocalBr(-24 * 60 * 60));
+	setDatePickerValue("#data", DataUtil.horarioLocalBr(-24 * 60 * 60));
+
+	function exibirZoom() {
+		if (!participacoesZoom || !participacoesZoom.length)
+			return;
+
+		$("#modalZoomBody").html('<table class="table table-flush table-striped table-hover table-row-pointer" id="tabelaZoom"></table>');
+
+		const tabelaZoom = prepareDataTable("tabelaZoom", {
+			order: [[0, "asc"]],
+			deferRender: true,
+			columns: [
+				{ title: "Nome", render: encode, data: "nome_aluno" },
+				{ title: "E-mail", render: encode, data: "email_aluno" },
+				{ title: "Presença (Minutos)", "type": "number", data: function (row, type, set, meta) { return Math.round(row.duracao_presenca_aluno / 60); } },
+				{ title: "RA", "type":"number", data: "ra", render: function (v, type, row) { return (v || ""); } }
+			],
+			data: participacoesZoom,
+			export: { title: "Entradas do Zoom sem correspondência para o dia " + dataEscolhida }
+		});
+
+		$("#tabelaZoom").on("click", "tr", function (e) {
+			const data = tabelaZoom.row(this).data();
+			if (!data)
+				return;
+
+			$(this).toggleClass("bg-success text-white font-weight-bold");
+		});
+
+		$("#modalZoom").modal({
+			backdrop: true,
+			keyboard: true
+		});
+	}
+
+	function extrairSegundosDoZoomPorEmail(email, emailalt) {
+		let segundos = 0;
+
+		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
+			const z = participacoesZoom[i];
+
+			if (z.email_aluno == email || z.email_aluno == emailalt) {
+				segundos += z.duracao_presenca_aluno;
+				participacoesZoom.splice(i, 1);
+			}
+		}
+
+		return segundos;
+	}
+
+	function extrairSegundosDoZoomPorRA(ra) {
+		let segundos = 0;
+
+		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
+			const z = participacoesZoom[i];
+
+			if (z.ra == ra) {
+				segundos += z.duracao_presenca_aluno;
+				participacoesZoom.splice(i, 1);
+			}
+		}
+
+		return segundos;
+	}
+
+	function extrairSegundosDoZoomPorNome(nomenorm) {
+		let segundos = 0;
+
+		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
+			const z = participacoesZoom[i];
+
+			if (z.nome_aluno == nomenorm) {
+				segundos += z.duracao_presenca_aluno;
+				participacoesZoom.splice(i, 1);
+			}
+		}
+
+		return segundos;
+	}
+
+	function prepararDados() {
+		$("#labelLimite").text(ocorrencia.limite);
+		$("#labelMinimo").text(ocorrencia.minimo);
+		$("#labelMinimoMinutos").text(ocorrencia.minimoMinutos);
+
+		const qrsPorRA = new Map();
+
+		// Verifica os QR's únicos que cada estudante marcou
+		for (let i = participacoes.length - 1; i >= 0; i--) {
+			const p = participacoes[i];
+
+			let pqr = qrsPorRA.get(p.ra);
+			if (!pqr) {
+				pqr = p;
+				// Não precisa transformar o nome em si, nem o e-mail, porque eles
+				// já foram passados por trim(), toUpperCase()/toLowerCase() na hora
+				// de serem gravados no banco
+				pqr.nomenorm = normalizeAccent(pqr.nome);
+				pqr.qr = 0;
+				pqr.presente = 0;
+				pqr.zoom = 0;
+				pqr.marcado = 0;
+				pqr.estados = new Set();
+				qrsPorRA.set(p.ra, pqr);
+			}
+
+			pqr.estados.add(p.estado);
+		}
+
+		// Conta os QR's únicos marcados e calcula a presença com
+		// base no mínimo exigido na configuração da ocorrência
+		dados = new Array(qrsPorRA.size);
+
+		const minimo = ocorrencia.minimo,
+			presencaInicial = ((participacoesZoom && participacoesZoom.length) ? 1 : 0);
+
+		let i = 0;
+
+		for (let p of qrsPorRA.values()) {
+			p.qr = p.estados.size;
+			if (p.qr >= minimo)
+				p.presente = presencaInicial;
+			p.estados.clear();
+			p.estados = null;
+			dados[i++] = p;
+		}
+
+		qrsPorRA.clear();
+
+		if (!presencaInicial) {
+			$("#btnZoom").hide();
+			return;
+		}
+
+		// Como os dados do Zoom são meio sem padrão, primeiro organiza
+		// um pouco, antes de sair buscando as semelhanças
+		for (i = participacoesZoom.length - 1; i >= 0; i--) {
+			const z = participacoesZoom[i];
+
+			z.email_aluno = (z.email_aluno || "").trim().toLowerCase();
+			z.nome_aluno = normalizeAccent(z.nome_aluno || "");
+
+			const u = z.nome_aluno.lastIndexOf("_");
+			let ra = 0;
+			if (u >= 0) {
+				ra = parseInt(z.nome_aluno.substring(u + 1));
+				if (isNaN(ra))
+					ra = 0;
+				else
+					z.nome_aluno = z.nome_aluno.substring(0, u);
+			}
+			z.ra = ra;
+		}
+
+		// Primeiro consome todos os registros que batem o e-mail
+		for (i = dados.length - 1; i >= 0; i--) {
+			const p = dados[i];
+			p.zoom += extrairSegundosDoZoomPorEmail(p.email, p.emailalt);
+		}
+
+		// Em seguida, consome todos os registros que batem o RA
+		for (i = dados.length - 1; i >= 0; i--) {
+			const p = dados[i];
+			p.zoom += extrairSegundosDoZoomPorRA(p.ra);
+		}
+
+		const minimoMinutos = ocorrencia.minimoMinutos;
+
+		// Por fim, consome todos os registros que batem o nome
+		// (Precisa ser feito nessa ordem, por causa de homônimos e
+		// outros casos...)
+		for (i = dados.length - 1; i >= 0; i--) {
+			const p = dados[i];
+			p.zoom += extrairSegundosDoZoomPorNome(p.nomenorm);
+			p.zoom = Math.round(p.zoom / 60);
+			if (p.zoom < minimoMinutos)
+				p.presente = 0;
+		}
+
+		if (!participacoesZoom.length)
+			$("#btnZoom").hide();
+		else
+			$("#btnZoom").show();
+	}
 
 	function atualizarTela() {
+		if (!ocorrencia)
+			return;
 
+		let alertaZoomVazio = false;
+
+		if (!dados) {
+			alertaZoomVazio = (!participacoesZoom || !participacoesZoom.length);
+			prepararDados();
+		}
+
+		const todasTurmas = document.getElementById("chkTodasTurmas").checked;
+
+		const colunas = [
+			{ title: "Nome", render: encode, data: "nome" },
+			{ title: "RA", "type":"number", data: "ra" },
+			{ title: "Presente", render: function (v, type, row) { return (v ? "Sim" : '<b class="text-danger">Não</b>'); }, data: "presente" },
+			{ title: "QR", "type": "number", data: "qr" },
+			{ title: "Zoom (Minutos)", "type": "number", data: "zoom" }
+		];
+
+		const dadosFiltrados = dados.slice();
+
+		switch (parseInt($("#selectTipoPresenca").val())) {
+			case 1: // Exibir apenas presentes
+				for (let i = dadosFiltrados.length - 1; i >= 0; i--) {
+					if (!dadosFiltrados[i].presente)
+						dadosFiltrados.splice(i, 1);
+				}
+				break;
+
+			case 2: // Exibir apenas faltantes
+				for (let i = dadosFiltrados.length - 1; i >= 0; i--) {
+					if (dadosFiltrados[i].presente)
+						dadosFiltrados.splice(i, 1);
+				}
+				break;
+		}
+
+		if (todasTurmas) {
+			colunas.push({ title: "Turma", render: encode, data: "turma" });
+		} else {
+			for (let i = dadosFiltrados.length - 1; i >= 0; i--) {
+				if (dadosFiltrados[i].turma !== disciplina.turma)
+					dadosFiltrados.splice(i, 1);
+			}
+		}
+
+		$("#container-tabela").html('<table class="table table-flush table-striped table-hover table-row-pointer" id="tabela"></table>');
+
+		const tabela = prepareDataTable("tabela", {
+			order: [[0, "asc"]],
+			deferRender: true,
+			columns: colunas,
+			data: dadosFiltrados,
+			export: { title: (todasTurmas ? ("Presenças de todas as turmas do dia " + dataEscolhida) : ("Presenças da turma " + disciplina.turma + " do dia " + dataEscolhida)) },
+			rowCallback: function (row, data) {
+				if (data.marcado)
+					$(row).addClass("bg-success text-white font-weight-bold");
+				else
+					$(row).removeClass("bg-success text-white font-weight-bold");
+			}
+		});
+
+		$("#tabela").on("click", "tr", function (e) {
+			const data = tabela.row(this).data();
+			if (!data)
+				return;
+
+			$(this).toggleClass("bg-success text-white font-weight-bold");
+			data.marcado = ($(this).hasClass("bg-success") ? 1 : 0);
+		});
+
+		$("#container").show();
+
+		if (alertaZoomVazio)
+			Swal.info({ html: 'Nenhuma participação foi encontrada no Zoom!<br/><br/>Isso pode significar que não houve um encontro no dia ' + dataEscolhida + ', ou que os dados ainda não foram liberados.<br/><br/>Por favor, aguarde pelo menos 24 horas depois da ocorrência da aula, antes de verificar as presenças. ' + emoji.happy });
 	}
 
 	function verificarPresencas() {
 		if (JsonWebApi.active)
 			return;
 
-		const data = DataUtil.converterDataISO($("#data").val());
+		$("#container").hide();
+		dados = null;
+
+		const data = DataUtil.converterDataISO(dataEscolhida = $("#data").val());
 		if (!data) {
 			Swal.error("Data da aula inválida! " + emoji.sad);
 			return;
@@ -70,18 +408,78 @@
 								atualizarTela();
 							} else {
 								Swal.error(response.value + " " + emoji.sad);
+
+								ocorrencia = null;
+								participacoes = null;
+								participacoesZoom = null;
+
+								atualizarTela();
 							}
 						}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
 
 					} else {
 						Swal.error(response.value + " " + emoji.sad);
+
+						ocorrencia = null;
+						participacoes = null;
+						participacoesZoom = null;
+
+						atualizarTela();
 					}
 				}, "id", disciplina.id, "idocorrencia", o.id);
 
 			} else {
 				Swal.error(response.value + " " + emoji.sad);
+
+				ocorrencia = null;
+				participacoes = null;
+				participacoesZoom = null;
+
+				atualizarTela();
 			}
 		}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+	}
+
+	function verificarIdparticipacao() {
+		if (JsonWebApi.active)
+			return;
+
+		const idparticipacao = parseInt($("#idparticipacao").val());
+		if (!idparticipacao) {
+			Swal.error("Protocolo inválido! " + emoji.sad);
+			return;
+		}
+
+		Swal.wait();
+
+		JsonWebApi.get("<%- root %>/api/disciplina/obterInfoParticipacao", function (response) {
+			if (response.success) {
+				const i = response.value;
+				if (!i) {
+					Swal.error("Protocolo inexistente " + emoji.sad);
+				} else {
+					Swal.info({
+						html: `
+						${(i.iddisciplina !== disciplina.id ? '<h2 class="text-primary">Protocolo de outra disciplina!</h2><hr/>' : '')}
+						<p>${i.ano}-${i.semestre} / ${encode(i.turma)}</p>
+						<p>${i.idsecao} - ${i.nomedisciplina}</p>
+						<hr/>
+						<p>Data da aula: ${DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(i.data), true)}</p>
+						<p>Número do QR: ${i.estado}</p>
+						<p>Data e hora da marcação: ${i.criacao}</p>
+						<hr/>
+						<p>Nome: ${encode(i.nome)}</p>
+						<p>RA: ${i.ra}</p>
+						<p>E-mail: ${i.email}</p>
+						${(i.emailalt ? ('<p>E-mail secundário: ' + encode(i.emailalt) + '</p>') : '')}
+						`,
+						title: "Protocolo " + idparticipacao
+					});
+				}
+			} else {
+				Swal.error(response.value + " " + emoji.sad);
+			}
+		}, "idparticipacao", idparticipacao);
 	}
 
 	//]]>

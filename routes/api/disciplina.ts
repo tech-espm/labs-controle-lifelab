@@ -154,33 +154,20 @@ class DisciplinaApiRoute {
 			return;
 		}
 
-		/*res.json([
-			{
-				duracao_aula: "02:18:00",
-				nome_aluno: "GEOVANNA FREITAS_177927",
-				email_aluno: "geovanna.freitas@acad.espm.br",
-				duracao_presenca_aluno: 45 * 60
-			},
-			{
-				duracao_aula: "02:18:00",
-				nome_aluno: "JULIA VICENTE_144642",
-				email_aluno: "julia.vicente@acad.espm.br",
-				duracao_presenca_aluno: 75 * 60
-			},
-			{
-				duracao_aula: "02:18:00",
-				nome_aluno: "GEOVANNA FREITAS_177927",
-				email_aluno: "geovanna.freitas@acad.espm.br",
-				duracao_presenca_aluno: 25 * 60
-			},
-			{
-				duracao_aula: "02:18:00",
-				nome_aluno: "TESTE_12345678",
-				email_aluno: "teste@acad.espm.br",
-				duracao_presenca_aluno: 12 * 60
-			}
-		]);*/
 		res.contentType("application/json").send(await IntegracaoMicroservices.obterParticipacoesZoom(parseInt(req.query["data"] as string), disciplina.idsistema));
+	}
+
+	public static async obterInfoParticipacao(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const ret = await Disciplina.obterInfoParticipacao(parseInt(req.query["idparticipacao"] as string));
+
+		if (typeof ret === "string")
+			res.status(400);
+
+		res.json(ret);
 	}
 }
 

@@ -31,7 +31,7 @@ class IndexRoute {
 	public static async r(req: app.Request, res: app.Response) {
 		const r = await Disciplina.confirmarParticipacao(req.query["i"] as string, req.query["token"] as string);
 
-		if (r)
+		if (typeof r === "string")
 			res.render("index/erro", {
 				layout: "layout-externo",
 				mensagem: r
@@ -39,7 +39,8 @@ class IndexRoute {
 		else
 			res.render("index/participacaook", {
 				layout: "layout-externo",
-				titulo: "Participação Confirmada"
+				titulo: "Participação Confirmada",
+				idparticipacao: r
 			});
 	}
 

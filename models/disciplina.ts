@@ -402,6 +402,9 @@ class Disciplina {
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
 
+			if (!o)
+				return "Verificação de presença não encontrada";
+
 			if (o.estado < 99)
 				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em andamento";
 
@@ -599,7 +602,7 @@ class Disciplina {
 		});
 	}
 
-	public static async confirmarParticipacao(tokenQR: string, token: string): Promise<string> {
+	public static async confirmarParticipacao(tokenQR: string, token: string): Promise<string | number> {
 		if (!tokenQR || tokenQR.length !== 40)
 			return "Código do QR inválido";
 
@@ -666,7 +669,7 @@ class Disciplina {
 		return app.sql.connect(async (sql) => {
 			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, (raTurma.class_section || "").trim().toUpperCase(), DataUtil.horarioDeBrasiliaISOComHorario()]);
 
-			return null;
+			return await sql.scalar("select last_insert_id()") as number;
 		});
 	}
 
@@ -683,7 +686,15 @@ class Disciplina {
 			if (o.estado < 99)
 				return "A verificação de presença da aula do dia " + DataUtil.converterDataISO(DataUtil.converterNumeroParaISO(o.data), true) + " ainda está em andamento";
 
-			return await sql.query("select estado, ra, email, nome, turma from disciplina_ocorrencia_estudante where idocorrencia = ?", [o.id]);
+			return await sql.query("select estado, ra, email, emailalt, nome, turma from disciplina_ocorrencia_estudante where idocorrencia = ?", [o.id]);
+		});
+	}
+
+	public static obterInfoParticipacao(idparticipacao: number): Promise<any> {
+		return app.sql.connect(async (sql) => {
+			const lista: Disciplina[] = await sql.query("select doe.estado, doe.ra, doe.email, doe.emailalt, doe.nome, doe.turma, date_format(doe.criacao, '%d/%m/%Y %H:%i:%s') criacao, dr.data, dr.iddisciplina, d.ano, d.semestre, d.idsecao, d.nome nomedisciplina from disciplina_ocorrencia_estudante doe inner join disciplina_ocorrencia dr on dr.id = doe.idocorrencia inner join disciplina d on d.id = dr.iddisciplina where doe.id = ?", [idparticipacao]);
+
+			return (lista && lista[0]) || null;
 		});
 	}
 };
