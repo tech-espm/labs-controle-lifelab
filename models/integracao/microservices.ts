@@ -83,8 +83,8 @@ export = class IntegracaoMicroservices {
 		return r.result;
 	}
 
-	public static async obterRATurma(email: string, idcurso: string, ano: number, semestre: number): Promise<{ emplid: string, class_section: string }> {
-		if (!email || !idcurso)
+	public static async obterRATurma(email: string, idcurso: string, ano: number, semestre: number): Promise<{ emplid: string, class_section: string }[]> {
+		if (!email || !idcurso || !ano || !semestre)
 			return null;
 
 		const tokenHeader = await IntegracaoMicroservices.token.obterHeader();
@@ -96,7 +96,7 @@ export = class IntegracaoMicroservices {
 		if (!r.success)
 			IntegracaoMicroservices.throwErro(r.result);
 
-		return r.result[0] || null;
+		return r.result || null;
 	}
 
 	public static async obterParticipacoesZoom(dataISONumerica: number, idsistema: string): Promise<string> {
@@ -108,6 +108,22 @@ export = class IntegracaoMicroservices {
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
 		const r = await app.request.string.get(appsettings.integracaoMicroservicesPathObterParticipacoesZoom + encodeURIComponent(idsistema) + "&start_time=" + DataUtil.converterNumeroParaISO(dataISONumerica), { headers: { "Authorization": tokenHeader } });
+
+		if (!r.success)
+			IntegracaoMicroservices.throwErro(JSON.parse(r.result), "Erro na integração com a base do Zoom");
+
+		return r.result;
+	}
+
+	public static async obterEstudantesDisciplina(idcurso: string, ano: number, semestre: number): Promise<string> {
+		if (!idcurso || !ano || !semestre)
+			return null;
+
+		const tokenHeader = await IntegracaoMicroservices.token.obterHeader();
+		if (!tokenHeader)
+			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
+
+		const r = await app.request.string.get(appsettings.integracaoMicroservicesPathObterEstudantesDisciplina + encodeURIComponent(idcurso) + "&Strm=" + (ano % 100).toString().padStart(2, "0") + semestre.toString().padStart(2, "0"), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
 			IntegracaoMicroservices.throwErro(JSON.parse(r.result), "Erro na integração com a base do Zoom");

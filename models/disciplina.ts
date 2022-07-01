@@ -351,13 +351,16 @@ class Disciplina {
 
 	private static async usuarioTemDisciplinaObjInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
 		const disciplinas: any[] = (admin ?
-			await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, coalesce(du.ancora, 0) ancora, coalesce(du.turma, '') turma from disciplina d left join disciplina_usuario du on du.iddisciplina = d.id and du.idusuario = ? where d.id = ? and d.exclusao is null", [idusuario, id]) :
-			await sql.query("select d.id, d.idsistema, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario])
+			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, coalesce(du.ancora, 0) ancora, coalesce(du.turma, '') turma from disciplina d left join disciplina_usuario du on du.iddisciplina = d.id and du.idusuario = ? where d.id = ? and d.exclusao is null", [idusuario, id]) :
+			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario])
 		);
 		return (disciplinas && disciplinas.length && (admin || disciplinas[0].ancora || !apenasAncora)) ? disciplinas[0] : null;
 	}
 
-	public static usuarioTemDisciplinaObj(id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
+	public static async usuarioTemDisciplinaObj(id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
+		if (!id)
+			return null;
+
 		return app.sql.connect(async (sql) => {
 			return await Disciplina.usuarioTemDisciplinaObjInterno(sql, id, idusuario, admin, apenasAncora);
 		});
@@ -401,7 +404,10 @@ class Disciplina {
 		});
 	}
 
-	public static obterOcorrenciaConcluidaPorData(id: number, data: number, idusuario: number, admin: boolean): Promise<string | DisciplinaOcorrencia> {
+	public static async obterOcorrenciaConcluidaPorData(id: number, data: number, idusuario: number, admin: boolean): Promise<string | DisciplinaOcorrencia> {
+		if (!id || !data)
+			return "Dados inválidos";
+
 		return app.sql.connect(async (sql) => {
 			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, 0, data);
 
@@ -639,8 +645,8 @@ class Disciplina {
 		if (!nome)
 			return "Nome não encontrado para o e-mail " + emailAcademico;
 
-		const ocorrencias: { idcurso: string, ano: number, semestre: number, estado: number }[] = await app.sql.connect(async (sql) => {
-			return await sql.query("select d.idcurso, d.ano, d.semestre, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
+		const ocorrencias: { idcurso: string, idsecao: string, ano: number, semestre: number, nome: string, estado: number }[] = await app.sql.connect(async (sql) => {
+			return await sql.query("select d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
 		});
 
 		if (!ocorrencias || !ocorrencias.length)
@@ -648,38 +654,57 @@ class Disciplina {
 
 		const ocorrencia = ocorrencias[0];
 
-		let raTurma = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
+		let raTurmas = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
 
-		if (!raTurma) {
+		if (!raTurmas || !raTurmas.length) {
 			if (email)
-				raTurma = await IntegracaoMicroservices.obterRATurma(email, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
+				raTurmas = await IntegracaoMicroservices.obterRATurma(email, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
+		}
 
-			if (!raTurma) {
-				if (emailAcademico) {
-					if (email && email !== emailAcademico)
-						return "RA não encontrado, ou matrícula não encontrada na disciplina, com os e-mails " + emailAcademico + " e " + email;
-					else
-						return "RA não encontrado, ou matrícula não encontrada na disciplina, com o e-mail " + emailAcademico;
-				} else if (email) {
-					return "RA não encontrado, ou matrícula não encontrada na disciplina, com o e-mail " + email;
-				} else {
-					return "E-mail não encontrado";
+		if (raTurmas) {
+			let ok = false;
+			for (let i = raTurmas.length - 1; i >= 0; i--) {
+				raTurmas[i].class_section = (raTurmas[i].class_section || "").trim().toUpperCase();
+				if (raTurmas[i].class_section === ocorrencia.idsecao) {
+					ok = true;
+					raTurmas.splice(i, 1);
+					// Deixa passar por todos, para ajustar o class_section de todos, e
+					// remover eventuais duplicidades
+					//break;
 				}
+			}
+			if (!ok)
+				raTurmas = null;
+		}
+
+		if (!raTurmas || !raTurmas.length) {
+			if (emailAcademico) {
+				if (email && email !== emailAcademico)
+					return `RA não encontrado, ou matrícula não encontrada na disciplina ${ocorrencia.idsecao} - ${ocorrencia.nome} (${ocorrencia.ano}-${ocorrencia.semestre}), com os e-mails ${emailAcademico} e ${email}`;
+				else
+					return `RA não encontrado, ou matrícula não encontrada na disciplina ${ocorrencia.idsecao} - ${ocorrencia.nome} (${ocorrencia.ano}-${ocorrencia.semestre}), com o e-mail ${emailAcademico}`;
+			} else if (email) {
+				return `RA não encontrado, ou matrícula não encontrada na disciplina ${ocorrencia.idsecao} - ${ocorrencia.nome} (${ocorrencia.ano}-${ocorrencia.semestre}), com o e-mail ${email}`;
+			} else {
+				return "E-mail não encontrado";
 			}
 		}
 
-		const ra = parseInt(raTurma.emplid);
+		const ra = parseInt(raTurmas[0].emplid);
 		if (!ra)
-			return "RA inválido: " + raTurma.emplid;
+			return "RA inválido: " + raTurmas[0].emplid;
 
 		return app.sql.connect(async (sql) => {
-			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencias[0].estado, ra, emailAcademico, email, nome, (raTurma.class_section || "").trim().toUpperCase(), DataUtil.horarioDeBrasiliaISOComHorario()]);
+			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencia.estado, ra, emailAcademico, email, nome, raTurmas[0].class_section, DataUtil.horarioDeBrasiliaISOComHorario()]);
 
 			return await sql.scalar("select last_insert_id()") as number;
 		});
 	}
 
 	public static async obterParticipacoes(id: number, idocorrencia: number, idusuario: number, admin: boolean): Promise<string | any[]> {
+		if (!id || !idocorrencia)
+			return "Dados inválidos";
+
 		return app.sql.connect(async (sql) => {
 			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, idocorrencia);
 
@@ -696,7 +721,10 @@ class Disciplina {
 		});
 	}
 
-	public static obterInfoParticipacao(idparticipacao: number): Promise<any> {
+	public static async obterInfoParticipacao(idparticipacao: number): Promise<any> {
+		if (!idparticipacao)
+			return null;
+
 		return app.sql.connect(async (sql) => {
 			const lista: Disciplina[] = await sql.query("select doe.estado, doe.ra, doe.email, doe.emailalt, doe.nome, doe.turma, date_format(doe.criacao, '%d/%m/%Y %H:%i:%s') criacao, dr.data, dr.iddisciplina, d.ano, d.semestre, d.idsecao, d.nome nomedisciplina from disciplina_ocorrencia_estudante doe inner join disciplina_ocorrencia dr on dr.id = doe.idocorrencia inner join disciplina d on d.id = dr.iddisciplina where doe.id = ?", [idparticipacao]);
 

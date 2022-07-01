@@ -157,6 +157,25 @@ class DisciplinaApiRoute {
 		res.contentType("application/json").send(await IntegracaoMicroservices.obterParticipacoesZoom(parseInt(req.query["data"] as string), disciplina.idsistema));
 	}
 
+	public static async obterEstudantes(req: app.Request, res: app.Response) {
+		const u = await Usuario.cookie(req, res);
+		if (!u)
+			return;
+
+		const disciplina = await Disciplina.usuarioTemDisciplinaObj(parseInt(req.query["id"] as string), u.id, u.admin, false);
+		if (disciplina === false) {
+			res.status(403).json("Não permitido");
+			return;
+		}
+
+		if (!disciplina) {
+			res.status(400).json("Disciplina não encontrada");
+			return;
+		}
+
+		res.contentType("application/json").send(await IntegracaoMicroservices.obterEstudantesDisciplina(disciplina.idcurso, disciplina.ano, disciplina.semestre));
+	}
+
 	public static async obterInfoParticipacao(req: app.Request, res: app.Response) {
 		const u = await Usuario.cookie(req, res);
 		if (!u)
