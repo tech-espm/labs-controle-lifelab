@@ -335,7 +335,7 @@ class Disciplina {
 
 	public static async excluir(id: number): Promise<string> {
 		return app.sql.connect(async (sql) => {
-			await sql.query("update disciplina set exclusao = ? where id = ? and exclusao is null", [DataUtil.horarioDeBrasiliaISOComHorario(), id]);
+			await sql.query("update disciplina set idsistema = concat('@', id, ':', idsistema), exclusao = ? where id = ? and exclusao is null", [DataUtil.horarioDeBrasiliaISOComHorario(), id]);
 
 			return (sql.affectedRows ? null : "Disciplina não encontrada");
 		});

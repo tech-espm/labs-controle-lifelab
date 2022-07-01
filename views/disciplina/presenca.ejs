@@ -105,6 +105,7 @@
 	let ocorrencia = null,
 		participacoes = null,
 		participacoesZoom = null,
+		estudantesDisciplina = null,
 		dataEscolhida = null,
 		emailProfessores = <%- JSON.stringify(emailProfessores || []) %>,
 		dados = null;
@@ -192,6 +193,39 @@
 		return segundos;
 	}
 
+	function prepararEstudantesDisciplina() {
+		// Precisa fazer um pré-filtro, porque os alunos aparecem duas vezes:
+		// Uma vez com o class_section da turma geral, como LL01, LL02 etc., e
+		// outra vez com o class_section da turma presencial, como LSPA, LRJB etc.,
+		// que é o class_section que nos interessa!
+		const rasDaDisciplina = new Set();
+
+		for (let i = estudantesDisciplina.length - 1; i >= 0; i--) {
+			const estudante = estudantesDisciplina[i];
+			estudante.class_section = (estudante.class_section || "").trim().toUpperCase();
+			estudante.emplid = parseInt(estudante.emplid);
+			if (estudante.class_section === disciplina.idsecao)
+				rasDaDisciplina.add(estudante.emplid);
+		}
+
+		// Agora busca todos os estudantes que estão em rasDaDisciplina, mas com
+		// class_section diferente do da disciplina (LL01, LL02 etc...)
+		for (let i = estudantesDisciplina.length - 1; i >= 0; i--) {
+			const estudante = estudantesDisciplina[i];
+			if (!rasDaDisciplina.has(estudante.emplid) ||
+				estudante.class_section === disciplina.idsecao) {
+				estudantesDisciplina.splice(i, 1);
+				continue;
+			}
+
+			estudante.full_name = (estudante.full_name || "").normalize().trim().toUpperCase();
+			estudante.nomenorm = normalizeAccent(estudante.full_name);
+			estudante.email_addr = (estudante.email_addr || "").normalize().trim().toLowerCase();
+		}
+
+		rasDaDisciplina.clear();
+	}
+
 	function prepararDados() {
 		$("#labelLimite").text(ocorrencia.limite);
 		$("#labelMinimo").text(ocorrencia.minimo);
@@ -199,8 +233,10 @@
 
 		const qrsPorRA = new Map();
 
+		let i = 0;
+
 		// Verifica os QR's únicos que cada estudante marcou
-		for (let i = participacoes.length - 1; i >= 0; i--) {
+		for (i = participacoes.length - 1; i >= 0; i--) {
 			const p = participacoes[i];
 
 			let pqr = qrsPorRA.get(p.ra);
@@ -221,6 +257,31 @@
 			pqr.estados.add(p.estado);
 		}
 
+		// Adiciona os demais alunos da disciplina, para poder exibir efetivamente
+		// quem faltou, independente de ter marcado ao menos QR ou não.
+		for (i = estudantesDisciplina.length - 1; i >= 0; i--) {
+			const estudante = estudantesDisciplina[i];
+			if (qrsPorRA.has(estudante.emplid))
+				continue;
+
+			const estados = new Set();
+			estados.add(0);
+			qrsPorRA.set(estudante.emplid, {
+				email: estudante.email_addr,
+				emailalt: null,
+				estado: 0,
+				nome: estudante.full_name,
+				ra: estudante.emplid,
+				turma: estudante.class_section,
+				nomenorm: estudante.nomenorm,
+				qr: 0,
+				presente: 0,
+				zoom: 0,
+				marcado: 0,
+				estados: new Set()
+			});
+		}
+
 		// Conta os QR's únicos marcados e calcula a presença com
 		// base no mínimo exigido na configuração da ocorrência
 		dados = new Array(qrsPorRA.size);
@@ -228,7 +289,7 @@
 		const minimo = ocorrencia.minimo,
 			presencaInicial = ((participacoesZoom && participacoesZoom.length) ? 1 : 0);
 
-		let i = 0;
+		i = 0;
 
 		for (let p of qrsPorRA.values()) {
 			p.qr = p.estados.size;
@@ -427,55 +488,76 @@
 
 		Swal.wait();
 
-		JsonWebApi.get("<%- root %>/api/disciplina/obterOcorrenciaConcluidaPorData", function (response) {
-			if (response.success) {
-				const o = response.value;
+		var terminar = function () {
+			JsonWebApi.get("<%- root %>/api/disciplina/obterOcorrenciaConcluidaPorData", function (response) {
+				if (response.success) {
+					const o = response.value;
 
-				JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoes", function (response) {
-					if (response.success) {
-						const p = response.value;
+					JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoes", function (response) {
+						if (response.success) {
+							const p = response.value;
 
-						JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoesZoom", function (response) {
-							if (response.success) {
-								Swal.close();
+							JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoesZoom", function (response) {
+								if (response.success) {
+									Swal.close();
 
-								ocorrencia = o;
-								participacoes = p;
-								participacoesZoom = response.value;
+									ocorrencia = o;
+									participacoes = p;
+									participacoesZoom = response.value;
 
-								atualizarTela();
-							} else {
-								Swal.error(response.value + " " + emoji.sad);
+									atualizarTela();
+								} else {
+									Swal.error(response.value + " " + emoji.sad);
 
-								ocorrencia = null;
-								participacoes = null;
-								participacoesZoom = null;
+									ocorrencia = null;
+									participacoes = null;
+									participacoesZoom = null;
 
-								atualizarTela();
-							}
-						}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+									atualizarTela();
+								}
+							}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
 
+						} else {
+							Swal.error(response.value + " " + emoji.sad);
+
+							ocorrencia = null;
+							participacoes = null;
+							participacoesZoom = null;
+
+							atualizarTela();
+						}
+					}, "id", disciplina.id, "idocorrencia", o.id);
+
+				} else {
+					Swal.error(response.value + " " + emoji.sad);
+
+					ocorrencia = null;
+					participacoes = null;
+					participacoesZoom = null;
+
+					atualizarTela();
+				}
+			}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+		};
+
+		if (estudantesDisciplina) {
+			terminar();
+		} else {
+			JsonWebApi.get("<%- root %>/api/disciplina/obterEstudantes", function (response) {
+				if (response.success) {
+					estudantesDisciplina = response.value;
+					if (!estudantesDisciplina || !estudantesDisciplina.length) {
+						estudantesDisciplina = null;
+						Swal.error("Não foram encontradas matrículas na disciplina " + emoji.sad);
 					} else {
-						Swal.error(response.value + " " + emoji.sad);
-
-						ocorrencia = null;
-						participacoes = null;
-						participacoesZoom = null;
-
-						atualizarTela();
+						prepararEstudantesDisciplina();
+						terminar();
 					}
-				}, "id", disciplina.id, "idocorrencia", o.id);
-
-			} else {
-				Swal.error(response.value + " " + emoji.sad);
-
-				ocorrencia = null;
-				participacoes = null;
-				participacoesZoom = null;
-
-				atualizarTela();
-			}
-		}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
+				} else {
+					Swal.error(response.value + " " + emoji.sad);
+				}
+			}, "id", disciplina.id);
+		}
 	}
 
 	function verificarIdparticipacao() {
