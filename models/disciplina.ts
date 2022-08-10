@@ -372,8 +372,8 @@ class Disciplina {
 		});
 	}
 
-	private static async obterOcorrenciaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasNaoConcluida: boolean, idocorrencia?: number, data?: number): Promise<false | DisciplinaOcorrencia> {
-		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, admin, true))
+	private static async obterOcorrenciaInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasNaoConcluida: boolean, apenasAncora: boolean, idocorrencia?: number, data?: number): Promise<false | DisciplinaOcorrencia> {
+		if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, admin, apenasAncora))
 			return false;
 
 		const params: any[] = [id];
@@ -400,7 +400,7 @@ class Disciplina {
 
 	public static obterOcorrenciaNaoConcluida(id: number, idusuario: number, admin: boolean): Promise<false | DisciplinaOcorrencia> {
 		return app.sql.connect(async (sql) => {
-			return await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, true);
+			return await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, true, true);
 		});
 	}
 
@@ -409,7 +409,7 @@ class Disciplina {
 			return "Dados inválidos";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, 0, data);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, false, 0, data);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -450,7 +450,7 @@ class Disciplina {
 			return "Permanência mínima em minutos inválida";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true, true);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -519,7 +519,7 @@ class Disciplina {
 		return app.sql.connect(async (sql) => {
 			// Para permitir ajustes pós-aula
 			//const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
-			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, false, ocorrencia.id);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, false, true, ocorrencia.id);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -569,7 +569,7 @@ class Disciplina {
 			return "Código QR inválido";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, ocorrencia.iddisciplina, idusuario, admin, true, true);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
@@ -706,7 +706,7 @@ class Disciplina {
 			return "Dados inválidos";
 
 		return app.sql.connect(async (sql) => {
-			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, idocorrencia);
+			const o = await Disciplina.obterOcorrenciaInterno(sql, id, idusuario, admin, false, false, idocorrencia);
 
 			if (o === false)
 				return "Sem permissão para controlar a verificação de presença da disciplina";
