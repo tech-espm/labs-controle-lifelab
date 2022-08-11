@@ -438,11 +438,11 @@ class Disciplina {
 			return "Data inválida";
 
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
-		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
+		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 0 || ocorrencia.limite > 8)
 			return "Quantidade total de verificações de presença inválida";
 
 		ocorrencia.minimo = parseInt(ocorrencia.minimo as any);
-		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 1 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite)
+		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 0 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite || (ocorrencia.limite && !ocorrencia.minimo))
 			return "Quantidade mínima obrigatória de verificações de presença inválida";
 
 		ocorrencia.minimoMinutos = parseInt(ocorrencia.minimoMinutos as any);
@@ -504,17 +504,21 @@ class Disciplina {
 		if (isNaN(ocorrencia.iddisciplina))
 			return "Disciplina inválida";
 
+		ocorrencia.estado = parseInt(ocorrencia.estado as any);
+
 		ocorrencia.limite = parseInt(ocorrencia.limite as any);
-		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 1 || ocorrencia.limite > 8)
+		if (isNaN(ocorrencia.limite) || ocorrencia.limite < 0 || ocorrencia.limite > 8)
 			return "Quantidade total de verificações de presença inválida";
 
 		ocorrencia.minimo = parseInt(ocorrencia.minimo as any);
-		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 1 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite)
+		if (isNaN(ocorrencia.minimo) || ocorrencia.minimo < 0 || ocorrencia.minimo > 8 || ocorrencia.minimo > ocorrencia.limite || (ocorrencia.limite && !ocorrencia.minimo))
 			return "Quantidade mínima obrigatória de verificações de presença inválida";
 
 		ocorrencia.minimoMinutos = parseInt(ocorrencia.minimoMinutos as any);
 		if (isNaN(ocorrencia.minimoMinutos) || ocorrencia.minimoMinutos < 1 || ocorrencia.minimoMinutos > 300)
 			return "Permanência mínima em minutos inválida";
+
+		ocorrencia.qr1 = parseInt(ocorrencia.qr1 as any);
 
 		return app.sql.connect(async (sql) => {
 			// Para permitir ajustes pós-aula
@@ -533,8 +537,19 @@ class Disciplina {
 			if (!o)
 				return "Verificação de presença não encontrada";
 
-			if ((o.qr1 && (ocorrencia.limite < o.estado)) || (ocorrencia.limite < (o.estado - 1)))
+			if (o.estado !== ocorrencia.estado ||
+				o.qr1 !== ocorrencia.qr1)
+				return "Por favor, atualize a página pois ela parece estar desatualizada";
+
+			if (!ocorrencia.limite && o.estado === 1 && !o.qr1) {
+				// Deve aceitar esse caso, porque pode ser que o usuário esteja alterando
+				// apenas o limite de tempo, ou tenha desistido de cobrar a validação do QR,
+				// logo no início da aula (antes de gerar o primeiro QR, mas depois de ter
+				// efetivamente iniciado a aula).
+				// Em qualquer outro estado, o limite não pode voltar para 0!
+			} else if ((o.qr1 && (ocorrencia.limite < o.estado)) || (ocorrencia.limite < (o.estado - 1))) {
 				return "A quantidade limite de verificações de presença deve ser maior ou igual à quantidade de códigos QR já gerados";
+			}
 
 			o.limite = ocorrencia.limite;
 			o.minimo = ocorrencia.minimo;
@@ -564,6 +579,10 @@ class Disciplina {
 		if (isNaN(ocorrencia.estado))
 			return "Estado inválido";
 
+		ocorrencia.limite = parseInt(ocorrencia.limite as any);
+		ocorrencia.minimo = parseInt(ocorrencia.minimo as any);
+		ocorrencia.minimoMinutos = parseInt(ocorrencia.minimoMinutos as any);
+
 		ocorrencia.qr1 = parseInt(ocorrencia.qr1 as any);
 		if (isNaN(ocorrencia.qr1))
 			return "Código QR inválido";
@@ -580,7 +599,11 @@ class Disciplina {
 			if (o.id !== ocorrencia.id)
 				return "Só é permitido controlar a verificação de presença da aula mais recente, ainda em andamento, da disciplina";
 
-			if (o.estado !== ocorrencia.estado || o.qr1 !== ocorrencia.qr1)
+			if (o.estado !== ocorrencia.estado ||
+				o.limite !== ocorrencia.limite ||
+				o.minimo !== ocorrencia.minimo ||
+				o.minimoMinutos !== ocorrencia.minimoMinutos ||
+				o.qr1 !== ocorrencia.qr1)
 				return "Por favor, atualize a página pois ela parece estar desatualizada";
 
 			let timestampqr: number;

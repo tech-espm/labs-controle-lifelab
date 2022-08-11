@@ -64,10 +64,10 @@
 				que ocorrerão ao longo da aula e os valores mínimos requeridos dos estudantes.
 				<br/><br/>
 				<label for="txtLimite">Quantidade total de verificações de presença</label>
-				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="3" />
+				<input type="number" class="form-control" id="txtLimite" min="0" max="8" value="3" />
 				<br/>
 				<label for="txtMinimo">Quantidade mínima obrigatória de verificações de presença</label>
-				<input type="number" class="form-control" id="txtMinimo" min="1" max="8" value="2" />
+				<input type="number" class="form-control" id="txtMinimo" min="0" max="8" value="2" />
 				<br/>
 				<label for="txtMinimoMinutos">Permanência mínima (minutos)</label>
 				<input type="number" class="form-control" id="txtMinimoMinutos" min="1" max="300" value="60" />
@@ -83,18 +83,23 @@
 		if (JsonWebApi.active || !result.value)
 			return;
 
-		if (!limite || limite < 1 || limite > 8) {
-			Swal.error("A quantidade total de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+		if (isNaN(limite) || limite < 0 || limite > 8) {
+			Swal.error("A quantidade total de verificações de presença deve estar entre 0 e 8 " + emoji.sad);
 			return;
 		}
 
-		if (!minimo || minimo < 1 || minimo > 8) {
-			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+		if (isNaN(minimo) || minimo < 0 || minimo > 8) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 0 e 8 " + emoji.sad);
 			return;
 		}
 
 		if (minimo > limite) {
-			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser maior ou igual à quantidade total de verificações de presença " + emoji.sad);
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser menor ou igual à quantidade total de verificações de presença " + emoji.sad);
+			return;
+		}
+
+		if (limite && !minimo) {
+			Swal.error("Quando a quantidade mínima obrigatória de verificações de presença for 0, a quantidade total de verificações de presença também deve ser 0 " + emoji.sad);
 			return;
 		}
 
@@ -135,10 +140,10 @@
 				que ocorrerão ao longo da aula e os valores mínimos requeridos dos estudantes.
 				<br/><br/>
 				<label for="txtLimite">Quantidade total de verificações de presença</label>
-				<input type="number" class="form-control" id="txtLimite" min="1" max="8" value="${ocorrencia.limite}" />
+				<input type="number" class="form-control" id="txtLimite" min="0" max="8" value="${ocorrencia.limite}" />
 				<br/>
 				<label for="txtMinimo">Quantidade mínima obrigatória de verificações de presença</label>
-				<input type="number" class="form-control" id="txtMinimo" min="1" max="8" value="${ocorrencia.minimo}" />
+				<input type="number" class="form-control" id="txtMinimo" min="0" max="8" value="${ocorrencia.minimo}" />
 				<br/>
 				<label for="txtMinimoMinutos">Permanência mínima (minutos)</label>
 				<input type="number" class="form-control" id="txtMinimoMinutos" min="1" max="300" value="${ocorrencia.minimoMinutos}" />
@@ -154,18 +159,23 @@
 		if (JsonWebApi.active || !result.value)
 			return;
 
-		if (!limite || limite < 1 || limite > 8) {
-			Swal.error("A quantidade total de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+		if (isNaN(limite) || limite < 0 || limite > 8) {
+			Swal.error("A quantidade total de verificações de presença deve estar entre 0 e 8 " + emoji.sad);
 			return;
 		}
 
-		if (!minimo || minimo < 1 || minimo > 8) {
-			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 1 e 8 " + emoji.sad);
+		if (isNaN(minimo) || minimo < 0 || minimo > 8) {
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve estar entre 0 e 8 " + emoji.sad);
 			return;
 		}
 
 		if (minimo > limite) {
-			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser maior ou igual à quantidade total de verificações de presença " + emoji.sad);
+			Swal.error("A quantidade mínima obrigatória de verificações de presença deve ser menor ou igual à quantidade total de verificações de presença " + emoji.sad);
+			return;
+		}
+
+		if (limite && !minimo) {
+			Swal.error("Quando a quantidade mínima obrigatória de verificações de presença for 0, a quantidade total de verificações de presença também deve ser 0 " + emoji.sad);
 			return;
 		}
 

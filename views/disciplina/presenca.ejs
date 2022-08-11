@@ -258,7 +258,7 @@
 		}
 
 		// Adiciona os demais alunos da disciplina, para poder exibir efetivamente
-		// quem faltou, independente de ter marcado ao menos QR ou não.
+		// quem faltou, independente de ter marcado ao menos 1 QR ou não.
 		for (i = estudantesDisciplina.length - 1; i >= 0; i--) {
 			const estudante = estudantesDisciplina[i];
 			if (qrsPorRA.has(estudante.emplid))
@@ -315,6 +315,7 @@
 				return (a.email_aluno < b.email_aluno ? -1 : 1);
 			return 0;
 		});
+
 		for (i = participacoesZoom.length - 1; i > 0; i--) {
 			const a = participacoesZoom[i];
 			const b = participacoesZoom[i - 1];
