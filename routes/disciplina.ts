@@ -2,6 +2,7 @@
 import appsettings = require("../appsettings");
 import Disciplina = require("../models/disciplina");
 import Usuario = require("../models/usuario");
+import DataUtil = require("../utils/dataUtil");
 
 class DisciplinaRoute {
 	public static async criar(req: app.Request, res: app.Response) {
@@ -68,16 +69,36 @@ class DisciplinaRoute {
 
 	public static async index(req: app.Request, res: app.Response) {
 		let u = await Usuario.cookie(req);
-		if (!u)
+		if (!u) {
 			res.redirect(app.root + "/acesso");
-		else
+		} else {
+			let ano = parseInt(req.query["p"] as string),
+				semestre: number,
+				anoAtual = DataUtil.converterISOParaNumero(DataUtil.horarioDeBrasiliaISO()),
+				semestreAtual = (((((anoAtual / 100) | 0) % 100) < 7) ? 1 : 2);
+
+			anoAtual = (anoAtual / 10000) | 0;
+
+			if (!ano) {
+				ano = anoAtual;
+				semestre = semestreAtual;
+			} else {
+				semestre = ano % 10;
+				ano = (ano / 10) | 0;
+			}
+
 			res.render("disciplina/index", {
 				layout: "layout-sem-form",
 				titulo: "Minhas Disciplinas",
 				datatables: true,
 				usuario: u,
-				lista: await Disciplina.listarDeUsuario(u.id)
+				anoAtual,
+				semestreAtual,
+				anoEscolhido: ano,
+				semestreEscolhido: semestre,
+				lista: await Disciplina.listarDeUsuario(u.id, ano, semestre)
 			});
+		}
 	}
 
 	public static async verificacao(req: app.Request, res: app.Response) {
@@ -135,6 +156,33 @@ class DisciplinaRoute {
 			else
 				res.render("disciplina/presenca", {
 					titulo: "Presenças da Disciplina",
+					layout: "layout-card",
+					datepicker: true,
+					datatables: true,
+					usuario: u,
+					disciplina,
+					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
+				});
+		}
+	}
+
+	public static async historico(req: app.Request, res: app.Response) {
+		let u = await Usuario.cookie(req);
+		if (!u) {
+			res.redirect(app.root + "/acesso");
+		} else {
+			let id = parseInt(req.query["id"] as string);
+			let disciplina: any;
+			if (isNaN(id))
+				res.render("index/nao-encontrado", {
+					layout: "layout-sem-form",
+					usuario: u
+				});
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, u.admin, false)))
+				res.redirect(app.root + "/acesso");
+			else
+				res.render("disciplina/historico", {
+					titulo: "Histórico da Disciplina",
 					layout: "layout-card",
 					datepicker: true,
 					datatables: true,

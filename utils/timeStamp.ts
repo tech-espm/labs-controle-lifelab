@@ -1,3 +1,4 @@
+import DataUtil = require("./dataUtil");
 
 export = class TimeStamp {
 	public static agora(): number {
@@ -10,6 +11,19 @@ export = class TimeStamp {
 
 	public static horarioDeBrasilia(ano: number, mes: number, dia: number, hora?: number, minuto?: number, segundo?: number): number {
 		return ((Date.UTC(ano, mes - 1, dia, hora || 0, minuto || 0, segundo || 0) + (180 * 60000)) / 1000) | 0;
+	}
+
+	public static horarioDeBrasiliaStr(dataEmHorarioDeBrasiliaComOuSemHorario: string | null): number {
+		let dataISO = DataUtil.converterDataISO(dataEmHorarioDeBrasiliaComOuSemHorario);
+		if (!dataISO)
+			return 0;
+
+		if (dataISO.indexOf(":") < 0)
+			dataISO += " 00:00:00";
+
+		dataISO += "Z";
+
+		return (((new Date(dataISO)).getTime() + (180 * 60000)) / 1000) | 0;
 	}
 
 	public static formatarHorarioDeBrasiliaBr(timestamp: number): string {

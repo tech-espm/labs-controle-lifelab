@@ -121,9 +121,9 @@ class Disciplina {
 		});
 	}
 
-	public static listarDeUsuario(idusuario: number): Promise<Disciplina[]> {
+	public static listarDeUsuario(idusuario: number, ano: number, semestre: number): Promise<Disciplina[]> {
 		return app.sql.connect(async (sql) => {
-			return (await sql.query("select d.id, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ? and d.exclusao is null order by d.ano desc, d.semestre desc, d.nome asc", [idusuario])) || [];
+			return (await sql.query("select d.id, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma, date_format(d.criacao, '%d/%m/%Y') criacao from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.idusuario = ? and d.ano = ? and d.semestre = ? and d.exclusao is null order by d.ano desc, d.semestre desc, d.nome asc", [idusuario, ano, semestre])) || [];
 		});
 	}
 

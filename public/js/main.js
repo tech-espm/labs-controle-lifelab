@@ -2256,6 +2256,61 @@ window.DataUtil = {
 		const hoje = DataUtil.dateUTC(deltaSegundos);
 
 		return DataUtil.formatarBrComHorario(hoje.getFullYear(), hoje.getMonth() + 1, hoje.getDate(), hoje.getHours(), hoje.getMinutes(), hoje.getSeconds());
+	},
+
+	inicioDoMesComoDateUTC: function (ano, mes) {
+		if (!ano || !mes) {
+			const agora = new Date();
+			if (!ano)
+				ano = agora.getFullYear();
+			if (!mes)
+				mes = agora.getMonth() + 1;
+		}
+
+		return new Date(Date.UTC(ano, mes - 1, 1));
+	},
+
+	fimDoMesComoDateUTC: function (ano, mes) {
+		if (!ano || !mes) {
+			const agora = new Date();
+			if (!ano)
+				ano = agora.getFullYear();
+			if (!mes)
+				mes = agora.getMonth() + 1;
+		}
+
+		if (mes === 12) {
+			mes = 1;
+			ano++;
+		} else {
+			mes++;
+		}
+
+		return new Date(Date.UTC(ano, mes - 1, 1) - (24 * 60 * 60 * 1000));
+	},
+
+	inicioDoMesISO: function (ano, mes) {
+		const inicioDoMes = DataUtil.inicioDoMesComoDateUTC(ano, mes);
+
+		return DataUtil.formatar(inicioDoMes.getUTCFullYear(), inicioDoMes.getUTCMonth() + 1, inicioDoMes.getUTCDate());
+	},
+
+	fimDoMesISO: function (ano, mes) {
+		const fimDoMes = DataUtil.fimDoMesComoDateUTC(ano, mes);
+
+		return DataUtil.formatar(fimDoMes.getUTCFullYear(), fimDoMes.getUTCMonth() + 1, fimDoMes.getUTCDate());
+	},
+
+	inicioDoMesBr: function (ano, mes) {
+		const inicioDoMes = DataUtil.inicioDoMesComoDateUTC(ano, mes);
+
+		return DataUtil.formatarBr(inicioDoMes.getUTCFullYear(), inicioDoMes.getUTCMonth() + 1, inicioDoMes.getUTCDate());
+	},
+
+	fimDoMesBr: function (ano, mes) {
+		const fimDoMes = DataUtil.fimDoMesComoDateUTC(ano, mes);
+
+		return DataUtil.formatarBr(fimDoMes.getUTCFullYear(), fimDoMes.getUTCMonth() + 1, fimDoMes.getUTCDate());
 	}
 };
 window.prepareDatePicker = function (id, options) {
@@ -2338,8 +2393,11 @@ window.prepareMultiselect = function (id, options) {
 			let tempSelection = {}, tempSelectionCount = btn.selectionCount,
 				html = '<div class="row mb-3"><div class="col"><input type="text" spellcheck="off" class="form-control form-control-sm" placeholder="Filtro"/></div><div class="col"><button type="button" class="btn btn-secondary btn-sm btn-block">Alternar Tudo</button></div></div>';
 
-			for (let i = 0; i < items.length; i++)
-				html += '<button type="button" class="btn btn-sm mb-0 ' + (i ? "mt-1" : "mt-0") + ' btn-block ' + (selection[items[i].id] ? 'btn-primary' : 'btn-light') + '" data-ntext="' + encodeValue(normalizeAccent(items[i].text)) + '" data-id="' + encodeValue(items[i].id) + '">' + ((items[i].color || items[i].backgroundColor) ? ('<span class="badge" style="font-size: 1em;' + (items[i].color ? ("color:" + items[i].color + ";") : "") + (items[i].backgroundColor ? ("background-color:" + items[i].backgroundColor + ";") : "") + '">' + encode(items[i].text) + '</span> ') : encode(items[i].text)) + '</button>';
+			for (let i = 0; i < items.length; i++) {
+				const idStr = items[i].id.toString();
+				const textStr = (items[i].text || "").toString();
+				html += '<button type="button" class="btn btn-sm mb-0 ' + (i ? "mt-1" : "mt-0") + ' btn-block ' + (selection[idStr] ? 'btn-primary' : 'btn-light') + '" data-ntext="' + encodeValue(normalizeAccent(textStr)) + '" data-id="' + encodeValue(idStr) + '">' + ((items[i].color || items[i].backgroundColor) ? ('<span class="badge" style="font-size: 1em;' + (items[i].color ? ("color:" + items[i].color + ";") : "") + (items[i].backgroundColor ? ("background-color:" + items[i].backgroundColor + ";") : "") + '">' + encode(textStr) + '</span> ') : encode(textStr)) + '</button>';
+			}
 
 			for (let i in selection)
 				tempSelection[i] = true;
@@ -2398,6 +2456,8 @@ window.prepareMultiselect = function (id, options) {
 					btn.selection = tempSelection;
 					btn.selectionCount = tempSelectionCount;
 					btn.textContent = btn.getAttribute("data-label") + ": " + (!tempSelectionCount ? "Nada" : (tempSelectionCount === btn.selectionItems.length ? "Tudo" : (tempSelectionCount === 1 ? "1 item" : (tempSelectionCount + " itens"))));
+					if (options && options.callback)
+						options.callback(btn);
 					return true;
 				}
 			});

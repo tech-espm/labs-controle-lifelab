@@ -1,5 +1,5 @@
 function comparadorNome(a: any, b: any): number {
-	return ((a.nome < b.nome) ? -1 : ((a.nome > b.nome) ? 1 : 0));
+	return (a.nome || "").localeCompare(b.nome || "");
 }
 
 export = function ordenarNomes<T>(lista: T[]): T[] {

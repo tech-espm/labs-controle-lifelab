@@ -1,5 +1,5 @@
 
-export = function extrairJWTPayload(jwt: string): string {
+export = function extrairJWTPayload(jwt: string): string | null {
 	if (!jwt)
 		return null;
 

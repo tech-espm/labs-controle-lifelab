@@ -10,6 +10,25 @@
 	];
 %>
 
+<div class="row">
+	<div class="col-lg-3 col-md-4 col-sm-6">
+		<div class="form-group">
+			<h3><label for="periodo" class="mb-0">Período</label></h3>
+			<select class="form-control" id="periodo" onchange="Swal.wait(); window.location.href = '<%- root %>/disciplina?p=' + $('#periodo').val();">
+<%
+	for (let ano = 2022; ano <= anoAtual; ano++) {
+		for (let semestre = (ano === 2022 ? 2 : 1); semestre <= (ano === anoAtual ? semestreAtual : 2); semestre++) {
+%>
+				<option value="<%- ano %><%- semestre %>" <%- ((ano === anoEscolhido && semestre === semestreEscolhido) ? 'selected="selected"' : '') %>><%- ano %>-<%- semestre %></option>
+<%
+		}
+	}
+%>
+			</select>
+		</div>
+	</div>
+</div>
+
 <% if (!lista.length) { %>
 <p class="text-center">Você ainda não tem disciplinas atribuídas. 😢</p>
 <% } else { %>
@@ -37,11 +56,13 @@
 			<div class="mb-3 font-weight-bold text-<%- cor %>">Gerente</div>
 
 			<div class="mb-3">
-				<a href="<%- root %>/disciplina/verificacao?id=<%- disciplina.id %>" class="btn btn-sm btn-<%- cor %>"><i class="fa fa-fw fa-user-check"></i> Verificação de Presença</a>
+				<a href="<%- root %>/disciplina/verificacao?id=<%- disciplina.id %>" class="btn btn-sm btn-block btn-<%- cor %>"><i class="fa fa-fw fa-user-check"></i> Verificação de Presença</a>
 			</div>
 			<% } %>
 
-			<a href="<%- root %>/disciplina/presenca?id=<%- disciplina.id %>" class="btn btn-sm btn-outline-<%- cor %>"><i class="fa fa-fw fa-calendar-check"></i> Consultar Presenças</a>
+			<div>
+				<a href="<%- root %>/disciplina/presenca?id=<%- disciplina.id %>" class="btn btn-sm btn-block btn-outline-<%- cor %>"><i class="fa fa-fw fa-calendar-check"></i> Consultar Presenças Individuais</a>
+			</div>
 		</div>
 	</div>
 </div>
