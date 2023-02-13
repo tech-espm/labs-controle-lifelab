@@ -35,6 +35,7 @@ interface Disciplina {
 	idcatalogo: string;
 	ano: number;
 	semestre: number;
+	eletiva: number;
 	nome: string;
 	exclusao?: string | null;
 	criacao: string;
@@ -64,6 +65,8 @@ class Disciplina {
 		disciplina.idsecao = (disciplina.idsecao || "").normalize().trim();
 		if (!disciplina.idsecao || disciplina.idsecao.length > 16)
 			return "Código de seção inválido";
+
+		disciplina.eletiva = (disciplina.idsecao.toUpperCase().startsWith("EL") ? 1 : 0);
 
 		disciplina.idcatalogo = (disciplina.idcatalogo || "").normalize().trim().toUpperCase();
 		if (!disciplina.idcatalogo || disciplina.idcatalogo.length > 16)
@@ -198,7 +201,7 @@ class Disciplina {
 			try {
 				await sql.beginTransaction();
 
-				await sql.query("insert into disciplina (idsistema, idcurso, idsecao, idcatalogo, ano, semestre, nome, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [disciplina.idsistema, disciplina.idcurso, disciplina.idsecao, disciplina.idcatalogo, disciplina.ano, disciplina.semestre, disciplina.nome, DataUtil.horarioDeBrasiliaISOComHorario()]);
+				await sql.query("insert into disciplina (idsistema, idcurso, idsecao, idcatalogo, ano, semestre, eletiva, nome, criacao) values (?, ?, ?, ?, ?, ?, ?, ?, ?)", [disciplina.idsistema, disciplina.idcurso, disciplina.idsecao, disciplina.idcatalogo, disciplina.ano, disciplina.semestre, disciplina.eletiva, disciplina.nome, DataUtil.horarioDeBrasiliaISOComHorario()]);
 			} catch (e) {
 				if (e.code) {
 					switch (e.code) {
@@ -668,8 +671,8 @@ class Disciplina {
 		if (!nome)
 			return "Nome não encontrado para o e-mail " + emailAcademico;
 
-		const ocorrencias: { idcurso: string, idsecao: string, ano: number, semestre: number, nome: string, estado: number }[] = await app.sql.connect(async (sql) => {
-			return await sql.query("select d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
+		const ocorrencias: { idcurso: string, idsecao: string, ano: number, semestre: number, eletiva: number, nome: string, estado: number }[] = await app.sql.connect(async (sql) => {
+			return await sql.query("select d.idcurso, d.idsecao, d.ano, d.semestre, d.eletiva, d.nome, dr.estado from disciplina_ocorrencia dr inner join disciplina d on d.id = dr.iddisciplina where dr.id = ? and dr.qr1 = ? and dr.qr2 = ? and dr.qr3 = ? and dr.qr4 = ? limit 1", [idocorrencia, qr1, qr2, qr3, qr4]);
 		});
 
 		if (!ocorrencias || !ocorrencias.length)
@@ -677,30 +680,35 @@ class Disciplina {
 
 		const ocorrencia = ocorrencias[0];
 
-		let raTurmas = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
+		let raTurmas = await IntegracaoMicroservices.obterRATurma(emailAcademico, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre, ocorrencia.eletiva !== 0);
 
 		if (!raTurmas || !raTurmas.length) {
 			if (email)
-				raTurmas = await IntegracaoMicroservices.obterRATurma(email, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre);
+				raTurmas = await IntegracaoMicroservices.obterRATurma(email, ocorrencia.idcurso, ocorrencia.ano, ocorrencia.semestre, ocorrencia.eletiva !== 0);
 		}
 
+		let raTurmasOK = false;
+		let emplid: string | null = null;
+
 		if (raTurmas) {
-			let ok = false;
 			for (let i = raTurmas.length - 1; i >= 0; i--) {
 				raTurmas[i].class_section = (raTurmas[i].class_section || "").trim().toUpperCase();
 				if (raTurmas[i].class_section === ocorrencia.idsecao) {
-					ok = true;
+					if (!emplid)
+						emplid = (raTurmas[i].emplid || "").trim();
+					raTurmasOK = true;
 					raTurmas.splice(i, 1);
 					// Deixa passar por todos, para ajustar o class_section de todos, e
 					// remover eventuais duplicidades
 					//break;
 				}
 			}
-			if (!ok)
+			if (!raTurmasOK)
 				raTurmas = null;
 		}
 
-		if (!raTurmas || !raTurmas.length) {
+		if ((ocorrencia.eletiva && !raTurmasOK) ||
+			(!ocorrencia.eletiva && (!raTurmas || !raTurmas.length))) {
 			if (emailAcademico) {
 				if (email && email !== emailAcademico)
 					return `RA não encontrado, ou matrícula não encontrada na disciplina ${ocorrencia.idsecao} - ${ocorrencia.nome} (${ocorrencia.ano}-${ocorrencia.semestre}), com os e-mails ${emailAcademico} e ${email}`;
@@ -713,12 +721,12 @@ class Disciplina {
 			}
 		}
 
-		const ra = parseInt(raTurmas[0].emplid);
+		const ra = parseInt(emplid);
 		if (!ra)
-			return "RA inválido: " + raTurmas[0].emplid;
+			return "RA inválido: " + emplid;
 
 		return app.sql.connect(async (sql) => {
-			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencia.estado, ra, emailAcademico, email, nome, raTurmas[0].class_section, DataUtil.horarioDeBrasiliaISOComHorario()]);
+			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencia.estado, ra, emailAcademico, email, nome, (ocorrencia.eletiva ? ocorrencia.idsecao : raTurmas[0].class_section), DataUtil.horarioDeBrasiliaISOComHorario()]);
 
 			return await sql.scalar("select last_insert_id()") as number;
 		});

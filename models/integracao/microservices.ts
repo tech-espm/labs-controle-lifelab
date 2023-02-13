@@ -83,7 +83,7 @@ export = class IntegracaoMicroservices {
 		return r.result;
 	}
 
-	public static async obterRATurma(email: string, idcurso: string, ano: number, semestre: number): Promise<{ emplid: string, class_section: string }[]> {
+	public static async obterRATurma(email: string, idcurso: string, ano: number, semestre: number, desconsiderarLLB: boolean): Promise<{ emplid: string, class_section: string }[]> {
 		if (!email || !idcurso || !ano || !semestre)
 			return null;
 
@@ -91,7 +91,7 @@ export = class IntegracaoMicroservices {
 		if (!tokenHeader)
 			IntegracaoMicroservices.throwErro("Erro na geração do token de acesso à integração");
 
-		const r = await app.request.json.get(appsettings.integracaoMicroservicesPathObterRATurma + encodeURIComponent(email) + "&crse_id=" + encodeURIComponent(idcurso) + "&strm=" + (ano % 100).toString().padStart(2, "0") + semestre.toString().padStart(2, "0"), { headers: { "Authorization": tokenHeader } });
+		const r = await app.request.json.get((desconsiderarLLB ? appsettings.integracaoMicroservicesPathObterRATurmaSemLLB : appsettings.integracaoMicroservicesPathObterRATurma) + encodeURIComponent(email) + "&crse_id=" + encodeURIComponent(idcurso) + "&strm=" + (ano % 100).toString().padStart(2, "0") + semestre.toString().padStart(2, "0"), { headers: { "Authorization": tokenHeader } });
 
 		if (!r.success)
 			IntegracaoMicroservices.throwErro(r.result);

@@ -39,6 +39,7 @@ CREATE TABLE disciplina (
   idcatalogo varchar(16) NOT NULL,
   ano smallint NOT NULL,
   semestre tinyint NOT NULL,
+  eletiva tinyint NOT NULL,
   nome varchar(100) NOT NULL,
   exclusao datetime NULL,
   criacao datetime NOT NULL,
