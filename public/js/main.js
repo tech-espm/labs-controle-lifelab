@@ -1897,7 +1897,7 @@ window.BlobDownloader = {
 		button.setAttribute("aria-label", "Pesquisar");
 		button.setAttribute("tabindex", "-1");
 		button.cbSearchSelect = select;
-		i.className = "fa fa-nomargin fa-filter";
+		i.className = "fa fa-nomargin fa-search";
 		if (window.prepareCbSearchAllowLower)
 			input.className = "form-control select-arrow" + ((select.className.indexOf("upper") >= 0) ? " upper" : "");
 		else
