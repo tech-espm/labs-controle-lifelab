@@ -18,11 +18,12 @@ class IndexRoute {
 	}
 
 	@app.http.all()
-	@app.route.methodName("p/:tokenQR")
+	@app.route.methodName("p/:tokenQR/:eletiva?")
 	public static async p(req: app.Request, res: app.Response) {
 		res.render("index/participacao", {
 			layout: "layout-externo",
 			titulo: "Participação",
+			eletiva: parseInt(req.params["eletiva"] as string) || 0,
 			ssoRedirPresenca: appsettings.ssoRedirPresenca + encodeURIComponent(req.params["tokenQR"] as string)
 		});
 	}
@@ -40,7 +41,8 @@ class IndexRoute {
 			res.render("index/participacaook", {
 				layout: "layout-externo",
 				titulo: "Participação Confirmada",
-				idparticipacao: r
+				eletiva: (r < 0),
+				idparticipacao: Math.abs(r)
 			});
 	}
 

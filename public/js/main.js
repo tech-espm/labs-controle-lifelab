@@ -1424,7 +1424,7 @@ window.BlobDownloader = {
 };
 // Search for selects
 (function () {
-	var regSlash = /[\/\\]/g, regTrim = /^\s+|\s+$/g, regA = /[ÁÀÃÂÄ]/g, regE = /[ÉÈÊË]/g, regI = /[ÍÌÎ]/g, regO = /[ÓÒÕÔ]/g, regU = /[ÚÙÛ]/g, regC = /[Ç]/g;
+	var regSlash = /[\/\\]/g, regTrim = /^\s+|\s+$/g, regA = /[ÁÀÃÂÄ]/g, regE = /[ÉÈÊË]/g, regI = /[ÍÌÎÏ]/g, regO = /[ÓÒÕÔÖ]/g, regU = /[ÚÙÛÜ]/g, regY = /[ÝŸ]/g, regC = /[Ç]/g;
 
 	function cbSearch_SetValue(select, value) {
 		select.value = value;
@@ -1445,11 +1445,11 @@ window.BlobDownloader = {
 	}
 
 	function cbSearch_Normalize(x) {
-		return x.toUpperCase().replace(regSlash, " ").replace(regTrim, "").replace(regA, "A").replace(regE, "E").replace(regI, "I").replace(regO, "O").replace(regU, "U").replace(regC, "C");
+		return x.toUpperCase().replace(regSlash, " ").replace(regTrim, "").replace(regA, "A").replace(regE, "E").replace(regI, "I").replace(regO, "O").replace(regU, "U").replace(regY, "Y").replace(regC, "C");
 	}
 
 	window.normalizeAccent = function (x) {
-		return (x ? x.toUpperCase().replace(regTrim, "").replace(regA, "A").replace(regE, "E").replace(regI, "I").replace(regO, "O").replace(regU, "U").replace(regC, "C") : "");
+		return (x ? x.toUpperCase().replace(regTrim, "").replace(regA, "A").replace(regE, "E").replace(regI, "I").replace(regO, "O").replace(regU, "U").replace(regY, "Y").replace(regC, "C") : "");
 	};
 
 	function cbSearch_Change() {

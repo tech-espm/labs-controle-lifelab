@@ -127,15 +127,17 @@ class DisciplinaRoute {
 		}
 	}
 
-	@app.route.methodName("qr/:estado/:limite/:tokenQR")
+	@app.route.methodName("qr/:estado/:limite/:tokenQR/:eletiva?")
 	public static async qr(req: app.Request, res: app.Response) {
+		const eletiva = parseInt(req.params["eletiva"] as string) || 0;
+
 		res.render("disciplina/qr", {
 			layout: "layout-externo",
 			titulo: "Código QR",
 			clipboard: true,
 			estado: parseInt(req.params["estado"] as string),
 			limite: parseInt(req.params["limite"] as string),
-			link: appsettings.urlPresenca + encodeURIComponent(req.params["tokenQR"] as string)
+			link: appsettings.urlPresenca + encodeURIComponent(req.params["tokenQR"] as string) + (eletiva ? "/1" : "/0")
 		});
 	}
 

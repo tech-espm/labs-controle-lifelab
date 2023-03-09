@@ -297,7 +297,7 @@
 					$("#btnExibirQR").hide();
 				} else {
 					$("#labelExibirQR").text("Exibir QR " + ocorrencia.estado + " de " + ocorrencia.limite);
-					$("#btnExibirQR").attr("href", "<%- root %>/disciplina/qr/" + ocorrencia.estado + "/" + ocorrencia.limite + "/" + ocorrencia.qr1.toString(16).padStart(8, "0") + ocorrencia.qr2.toString(16).padStart(8, "0") + (ocorrencia.id ^ ocorrencia.qr1).toString(16).padStart(8, "0") + ocorrencia.qr3.toString(16).padStart(8, "0") + ocorrencia.qr4.toString(16).padStart(8, "0"));
+					$("#btnExibirQR").attr("href", "<%- root %>/disciplina/qr/" + ocorrencia.estado + "/" + ocorrencia.limite + "/" + ocorrencia.qr1.toString(16).padStart(8, "0") + ocorrencia.qr2.toString(16).padStart(8, "0") + (ocorrencia.id ^ ocorrencia.qr1).toString(16).padStart(8, "0") + ocorrencia.qr3.toString(16).padStart(8, "0") + ocorrencia.qr4.toString(16).padStart(8, "0") + (disciplina.eletiva ? "/1" : "/0"));
 					$("#btnExibirQR").show();
 				}
 				return;

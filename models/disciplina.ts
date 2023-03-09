@@ -354,8 +354,8 @@ class Disciplina {
 
 	private static async usuarioTemDisciplinaObjInterno(sql: app.Sql, id: number, idusuario: number, admin: boolean, apenasAncora: boolean): Promise<any> {
 		const disciplinas: any[] = (admin ?
-			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, coalesce(du.ancora, 0) ancora, coalesce(du.turma, '') turma from disciplina d left join disciplina_usuario du on du.iddisciplina = d.id and du.idusuario = ? where d.id = ? and d.exclusao is null", [idusuario, id]) :
-			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario])
+			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.eletiva, d.nome, coalesce(du.ancora, 0) ancora, coalesce(du.turma, '') turma from disciplina d left join disciplina_usuario du on du.iddisciplina = d.id and du.idusuario = ? where d.id = ? and d.exclusao is null", [idusuario, id]) :
+			await sql.query("select d.id, d.idsistema, d.idcurso, d.idsecao, d.ano, d.semestre, d.eletiva, d.nome, du.ancora, du.turma from disciplina_usuario du inner join disciplina d on d.id = du.iddisciplina where du.iddisciplina = ? and du.idusuario = ? and d.exclusao is null", [id, idusuario])
 		);
 		return (disciplinas && disciplinas.length && (admin || disciplinas[0].ancora || !apenasAncora)) ? disciplinas[0] : null;
 	}
@@ -728,7 +728,8 @@ class Disciplina {
 		return app.sql.connect(async (sql) => {
 			await sql.query("insert into disciplina_ocorrencia_estudante (idocorrencia, estado, ra, email, emailalt, nome, turma, criacao) values (?, ?, ?, ?, ?, ?, ?, ?)", [idocorrencia, ocorrencia.estado, ra, emailAcademico, email, nome, (ocorrencia.eletiva ? ocorrencia.idsecao : raTurmas[0].class_section), DataUtil.horarioDeBrasiliaISOComHorario()]);
 
-			return await sql.scalar("select last_insert_id()") as number;
+			const id = await sql.scalar("select last_insert_id()") as number;
+			return (ocorrencia.eletiva ? -id : id);
 		});
 	}
 
