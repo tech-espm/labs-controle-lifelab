@@ -117,7 +117,7 @@ class DisciplinaRoute {
 				res.redirect(app.root + "/acesso");
 			else
 				res.render("disciplina/verificacao", {
-					titulo: "Verificação de Presença da Disciplina",
+					titulo: "Controle de QR da Disciplina",
 					layout: "layout-card",
 					datepicker: true,
 					usuario: u,
@@ -163,6 +163,40 @@ class DisciplinaRoute {
 					datatables: true,
 					usuario: u,
 					disciplina,
+					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
+				});
+		}
+	}
+
+	public static async presencaSemestral(req: app.Request, res: app.Response) {
+		let u = await Usuario.cookie(req);
+		if (!u) {
+			res.redirect(app.root + "/acesso");
+		} else {
+			let id = parseInt(req.query["id"] as string);
+			let disciplina: any;
+			let ocorrencias: any;
+			if (isNaN(id))
+				res.render("index/nao-encontrado", {
+					layout: "layout-sem-form",
+					usuario: u
+				});
+			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, u.admin, false)))
+				res.redirect(app.root + "/acesso");
+			else if (typeof (ocorrencias = await Disciplina.obterTodasOcorrenciasConcluidas(id, u.id, u.admin)) === "string")
+				res.render("index/erro", {
+					layout: "layout-externo",
+					mensagem: ocorrencias
+				});
+			else
+				res.render("disciplina/presenca-semestral", {
+					titulo: "Presença Semestral da Disciplina",
+					layout: "layout-card",
+					datatables: true,
+					xlsx: true,
+					usuario: u,
+					disciplina,
+					ocorrencias,
 					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
 				});
 		}

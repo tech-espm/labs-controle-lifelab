@@ -427,6 +427,23 @@ class Disciplina {
 		});
 	}
 
+	public static async obterTodasOcorrenciasConcluidas(id: number, idusuario: number, admin: boolean): Promise<string | DisciplinaOcorrencia[]> {
+		if (!id)
+			return "Dados inválidos";
+
+		return app.sql.connect(async (sql) => {
+			if (!await Disciplina.usuarioTemDisciplinaInterno(sql, id, idusuario, admin, false))
+				return "Sem permissão para controlar a verificação de presença da disciplina";
+
+			const lista: DisciplinaOcorrencia[] = await sql.query("select id, iddisciplina, idusuario, data, limite, minimo, minimoMinutos from disciplina_ocorrencia where iddisciplina = ? and estado = 99 order by data asc", [id]);
+
+			if (!lista || !lista.length)
+				return "Nenhuma verificação de presença concluída foi encontrada na disciplina";
+
+			return lista;
+		});
+	}
+
 	public static async iniciarOcorrencia(idusuario: number, admin: boolean, ocorrencia: DisciplinaOcorrencia): Promise<string | DisciplinaOcorrencia> {
 		if (!ocorrencia)
 			return "Dados inválidos";

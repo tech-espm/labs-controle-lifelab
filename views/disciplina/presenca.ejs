@@ -209,11 +209,14 @@
 		}
 
 		// Agora busca todos os estudantes que estão em rasDaDisciplina, mas com
-		// class_section diferente do da disciplina (LL01, LL02 etc...)
+		// class_section diferente do da disciplina (LL01, LL02 etc...), para o LifeLab.
+		// Para as eletivas, é o contrário (deve pegar apenas quem tem o class_section
+		// igual ao da disciplina).
 		for (let i = estudantesDisciplina.length - 1; i >= 0; i--) {
 			const estudante = estudantesDisciplina[i];
 			if (!rasDaDisciplina.has(estudante.emplid) ||
-				estudante.class_section === disciplina.idsecao) {
+				(!disciplina.eletiva && estudante.class_section === disciplina.idsecao) ||
+				(disciplina.eletiva && estudante.class_section !== disciplina.idsecao)) {
 				estudantesDisciplina.splice(i, 1);
 				continue;
 			}
@@ -393,7 +396,7 @@
 			p.zoom += extrairSegundosDoZoomPorNome(p.nomenorm);
 			p.zoom = Math.round(p.zoom / 60);
 			if (p.zoom < minimoMinutos)
-				p.presente = 0;
+				p.presente = ((p.zoom < (minimoMinutos - 3)) ? 0 : 2);
 		}
 
 		participacoesZoom.sort((a, b) => (a.nomenorm == b.nomenorm) ? (a.email_aluno < b.email_aluno ? -1 : 1) : (a.nomenorm < b.nomenorm ? -1 : 1));
@@ -431,7 +434,7 @@
 		const colunas = [
 			{ title: "Nome", render: encode, data: "nome" },
 			{ title: "RA", "type":"number", data: "ra" },
-			{ title: "Presente", render: function (v, type, row) { return (v ? "Sim" : '<b class="text-danger">Não</b>'); }, data: "presente" },
+			{ title: "Presente", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: "presente" },
 			{ title: "QR", "type": "number", data: "qr" },
 			{ title: "Zoom (Minutos)", "type": "number", data: "zoom" }
 		];
