@@ -31,9 +31,6 @@
 	</div>
 </div>
 
-<div class="text-center">
-</div>
-
 <div id="container" style="display: none;">
 	<div class="text-center">
 		<hr class="my-5" />
@@ -395,7 +392,7 @@
 			const p = dados[i];
 			p.zoom += extrairSegundosDoZoomPorNome(p.nomenorm);
 			p.zoom = Math.round(p.zoom / 60);
-			if (p.zoom < minimoMinutos)
+			if (p.presente && (p.zoom < minimoMinutos))
 				p.presente = ((p.zoom < (minimoMinutos - 3)) ? 0 : 2);
 		}
 
