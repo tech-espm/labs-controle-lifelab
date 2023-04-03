@@ -7,10 +7,6 @@
 	let estudantesDisciplina = <%- estudantesDisciplinaJSON %>,
 		emailProfessores = <%- JSON.stringify(emailProfessores || []) %>;
 
-	prepareDatePicker("#data");
-
-	setDatePickerValue("#data", DataUtil.horarioLocalBr(-24 * 60 * 60));
-
 	function extrairSegundosDoZoomPorEmail(email, emailalt) {
 		let segundos = 0;
 
