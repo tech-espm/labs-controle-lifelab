@@ -168,6 +168,7 @@ class DisciplinaRoute {
 					layout: "layout-card",
 					datepicker: true,
 					datatables: true,
+					xlsx: true,
 					usuario: u,
 					disciplina,
 					estudantesDisciplinaJSON,

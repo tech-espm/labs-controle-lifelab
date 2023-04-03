@@ -127,7 +127,7 @@
 				{ title: "Descrição Zoom", render: encode, data: "nome_aluno" },
 			],
 			data: participacoesZoom,
-			export: { title: "Entradas do Zoom sem correspondência para o dia " + dataEscolhida }
+			export: { xlsx: true, title: "Entradas do Zoom sem correspondência para o dia " + dataEscolhida }
 		});
 
 		$("#tabelaZoom").on("click", "tr", function (e) {

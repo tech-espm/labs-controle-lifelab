@@ -771,7 +771,8 @@ window.DataTableExporter = {
 			const filename = config.filename.replace(".csv", "");
 			const worksheet = XLSX.utils.aoa_to_sheet(blobdata);
 			const workbook = XLSX.utils.book_new();
-			XLSX.utils.book_append_sheet(workbook, worksheet, filename);
+			// Sheet names cannot contain more than 31 chars!
+			XLSX.utils.book_append_sheet(workbook, worksheet, window.currentLanguageId === 1 ? "Data" : "Dados");
 			XLSX.writeFile(workbook, filename + ".xlsx", { compression: false });
 		}
 	}

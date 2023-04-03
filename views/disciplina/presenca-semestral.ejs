@@ -1,0 +1,166 @@
+<div class="row no-gutters align-items-center">
+	<div class="col mr-2">
+		<div class="text-xs font-weight-bold text-primary text-uppercase mb-1"><%- disciplina.ano %>-<%- disciplina.semestre %> / <%= (disciplina.turma || "[SEM TURMA]") %></div>
+		<div class="h5 mb-0 font-weight-bold text-gray-800"><%= disciplina.idsecao %> - <%= disciplina.nome %></div>
+	</div>
+	<div class="col-auto">
+		<i class="fas fa-book fa-2x text-gray-300"></i>
+	</div>
+</div>
+
+<hr />
+
+<div class="text-center">
+	<label class="form-group form-check mb-0">
+		<input type="checkbox" class="form-check-input" id="chkTodasTurmas" onchange="atualizarTela()" />
+		Todas as Turmas
+	</label>
+</div>
+
+<hr />
+
+<div id="container-tabela" style="margin-left: -1.25rem; margin-right: -1.25rem;"></div>
+
+<%- contentFor("styles") %>
+
+<style type="text/css">
+	.borda-data {
+		border-left: 3px solid #e3e6f0;
+	}
+</style>
+
+<%- contentFor("scripts") %>
+
+<%- include("presenca-class") %>
+
+<script type="text/javascript">
+	//<![CDATA[
+	"use strict";
+
+	let ocorrencias = <%- JSON.stringify(ocorrencias || []) %>,
+		qrsDosEstudantesAtuais = new Set(),
+		dados = null,
+		colunas = [
+			{ title: "Nome", render: encode, data: "nome" },
+			{ title: "RA", "type":"number", data: "ra" },
+			{ title: "Turma", render: encode, data: "turma" }
+		];
+
+	function prepararOcorrencia(indiceOcorrencia) {
+		if (indiceOcorrencia >= ocorrencias.length) {
+			Swal.close();
+			atualizarTela();
+			return;
+		}
+
+		const dataISO = ((ocorrencias[indiceOcorrencia].data / 10000) | 0) + "-" + format2(((ocorrencias[indiceOcorrencia].data / 100) % 100) | 0) + "-" + format2((ocorrencias[indiceOcorrencia].data % 100) | 0),
+			dataStr = DataUtil.converterDataISO(dataISO, true);
+
+		verificarPresencasPorData(dataISO, function (o, p, z, erro) {
+			if (erro) {
+				Swal.error("Ocorreu um erro ao obter os dados da ocorrência do dia " + dataStr + ": " + erro + " " + emoji.sad);
+				return;
+			}
+
+			const dadosTemp = prepararDados(o, p, z);
+			if (!dadosTemp || !dadosTemp.length) {
+				Swal.error("Os dados da ocorrência do dia " + dataStr + " estavam vazios " + emoji.sad);
+				return;
+			}
+
+			if (!dados) {
+				// Preenche os RA's dos alunos para poder filtrar posteriormente,
+				// e remover os alunos que não fazem mais parte dessa disciplina.
+				for (let i = estudantesDisciplina.length - 1; i >= 0; i--)
+					qrsDosEstudantesAtuais.add(estudantesDisciplina[i].emplid);
+			}
+
+			for (let i = dadosTemp.length - 1; i >= 0; i--) {
+				if (!qrsDosEstudantesAtuais.has(dadosTemp[i].ra))
+					dadosTemp.splice(i, 1);
+			}
+
+			dadosTemp.sort(function (a, b) { return (a.email < b.email ? -1 : 1); });
+
+			if (!dados) {
+				dados = dadosTemp;
+				colunas.push(
+					{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: "presente" },
+					{ title: "QR", "type": "number", data: "qr" },
+					{ title: "Zoom (Minutos)", "type": "number", data: "zoom" }
+				);
+			} else if (!dadosTemp || dadosTemp.length !== dados.length) {
+				Swal.error("Os dados da ocorrência do dia " + dataStr + " possuem " + dadosTemp.length + " entradas, mas os dados anteriores possuem " + dados.length + " entradas " + emoji.sad);
+				return;
+			} else {
+				const presenteI = "presente" + indiceOcorrencia;
+				const qrI = "qr" + indiceOcorrencia;
+				const zoomI = "zoom" + indiceOcorrencia;
+
+				colunas.push(
+					{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: presenteI },
+					{ title: "QR", "type": "number", data: qrI },
+					{ title: "Zoom (Minutos)", "type": "number", data: zoomI }
+				);
+
+				for (let i = 0; i < dadosTemp.length; i++) {
+					if (dadosTemp[i].email !== dados[i].email) {
+						Swal.error("O e-mail da " + (i + 1) + "ª entrada de dados do dia " + dataStr + " é " + dadosTemp[i].email + ", ao passo que nos dados anteriores era " + dados[i].email + " " + emoji.sad);
+						return;
+					}
+
+					dados[i][presenteI] = dadosTemp[i].presente;
+					dados[i][qrI] = dadosTemp[i].qr;
+					dados[i][zoomI] = dadosTemp[i].zoom;
+				}
+			}
+
+			prepararOcorrencia(indiceOcorrencia + 1);
+		});
+	}
+
+	function atualizarTela() {
+		const todasTurmas = document.getElementById("chkTodasTurmas").checked;
+
+		const dadosFiltrados = dados.slice();
+
+		if (todasTurmas) {
+			colunas[2].visible = true;
+		} else {
+			colunas[2].visible = false;
+			for (let i = dadosFiltrados.length - 1; i >= 0; i--) {
+				if (dadosFiltrados[i].turma !== disciplina.turma)
+					dadosFiltrados.splice(i, 1);
+			}
+		}
+
+		$("#container-tabela").html('<table class="table table-flush table-striped table-hover table-row-pointer" id="tabela"></table>');
+
+		const tabela = prepareDataTable("tabela", {
+			order: [[0, "asc"]],
+			deferRender: true,
+			columns: colunas,
+			data: dadosFiltrados,
+			export: { xlsx: true, title: (todasTurmas ? ("Presença semestral de todas as turmas de " + disciplina.nome) : ("Presença semestral da turma " + disciplina.turma + " de " + disciplina.nome)) },
+			rowCallback: function (row, data) {
+				if (data.marcado)
+					$(row).addClass("bg-success text-white font-weight-bold");
+				else
+					$(row).removeClass("bg-success text-white font-weight-bold");
+			}
+		});
+
+		$("#tabela").on("click", "tr", function (e) {
+			const data = tabela.row(this).data();
+			if (!data)
+				return;
+
+			$(this).toggleClass("bg-success text-white font-weight-bold");
+			data.marcado = ($(this).hasClass("bg-success") ? 1 : 0);
+		});
+	}
+
+	prepararOcorrencia(0);
+
+	//]]>
+</script>

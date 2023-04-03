@@ -7,7 +7,7 @@
 	let estudantesDisciplina = <%- estudantesDisciplinaJSON %>,
 		emailProfessores = <%- JSON.stringify(emailProfessores || []) %>;
 
-	function extrairSegundosDoZoomPorEmail(email, emailalt) {
+	function extrairSegundosDoZoomPorEmail(participacoesZoom, email, emailalt) {
 		let segundos = 0;
 
 		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
@@ -22,7 +22,7 @@
 		return segundos;
 	}
 
-	function extrairSegundosDoZoomPorRA(ra) {
+	function extrairSegundosDoZoomPorRA(participacoesZoom, ra) {
 		let segundos = 0;
 
 		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
@@ -37,7 +37,7 @@
 		return segundos;
 	}
 
-	function extrairSegundosDoZoomPorNome(nomenorm) {
+	function extrairSegundosDoZoomPorNome(participacoesZoom, nomenorm) {
 		let segundos = 0;
 
 		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
@@ -159,7 +159,7 @@
 		qrsPorRA.clear();
 
 		if (!presencaInicial)
-			return;
+			return dados;
 
 		// Remove as entradas duplicadas provenientes da API do Zoom
 		participacoesZoom.sort((a, b) => {
@@ -230,13 +230,13 @@
 		// Primeiro consome todos os registros que batem o e-mail
 		for (i = dados.length - 1; i >= 0; i--) {
 			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorEmail(p.email, p.emailalt);
+			p.zoom += extrairSegundosDoZoomPorEmail(participacoesZoom, p.email, p.emailalt);
 		}
 
 		// Em seguida, consome todos os registros que batem o RA
 		for (i = dados.length - 1; i >= 0; i--) {
 			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorRA(p.ra);
+			p.zoom += extrairSegundosDoZoomPorRA(participacoesZoom, p.ra);
 		}
 
 		const minimoMinutos = ocorrencia.minimoMinutos;
@@ -246,7 +246,7 @@
 		// outros casos...)
 		for (i = dados.length - 1; i >= 0; i--) {
 			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorNome(p.nomenorm);
+			p.zoom += extrairSegundosDoZoomPorNome(participacoesZoom, p.nomenorm);
 			p.zoom = Math.round(p.zoom / 60);
 			if (p.presente && (p.zoom < minimoMinutos))
 				p.presente = ((p.zoom < (minimoMinutos - 3)) ? 0 : 2);
