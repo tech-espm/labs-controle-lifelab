@@ -1,12 +1,12 @@
 
 export = class Validacao {
-	public static isDocumento(cnpjOuCPF: string | null): boolean {
-		return (cnpjOuCPF ? ((cnpjOuCPF.length === 14) ? Validacao.isCPF(cnpjOuCPF) : Validacao.isCNPJ(cnpjOuCPF)) : false);
+	public static isDocumento(cnpjOuCPF: string | null): string | null {
+		return (cnpjOuCPF ? ((cnpjOuCPF.length === 14) ? Validacao.isCPF(cnpjOuCPF) : Validacao.isCNPJ(cnpjOuCPF)) : null);
 	}
 
-	public static isCNPJ(cnpj: string | null): boolean {
+	public static isCNPJ(cnpj: string | null): string | null {
 		if (!cnpj || !(cnpj = cnpj.replace(/\./g, "").replace(/\-/g, "").replace(/\//g, "").trim()) || cnpj.length !== 14)
-			return false;
+			return null;
 
 		let sum = 0;
 
@@ -19,7 +19,7 @@ export = class Validacao {
 			modulus = 11 - modulus;
 
 		if ((cnpj.charCodeAt(12) - 0x30) !== modulus)
-			return false;
+			return null;
 
 		sum = 0;
 		for (let i = 0; i < 13; i++)
@@ -30,12 +30,12 @@ export = class Validacao {
 		else
 			modulus = 11 - modulus;
 
-		return ((cnpj.charCodeAt(13) - 0x30) === modulus);
+		return (((cnpj.charCodeAt(13) - 0x30) === modulus) ? cnpj : null);
 	}
 
-	public static isCPF(cpf: string | null): boolean {
+	public static isCPF(cpf: string | null): string | null {
 		if (!cpf || !(cpf = cpf.replace(/\./g, "").replace(/\-/g, "").trim()) || cpf.length !== 11)
-			return false;
+			return null;
 
 		let sum = 1, firstChar = cpf.charCodeAt(0);
 
@@ -46,7 +46,7 @@ export = class Validacao {
 			}
 		}
 		if (sum)
-			return false;
+			return null;
 
 		sum = 0;
 		for (let i = 0; i < 9; i++)
@@ -58,7 +58,7 @@ export = class Validacao {
 			modulus = 11 - modulus;
 
 		if ((cpf.charCodeAt(9) - 0x30) !== modulus)
-			return false;
+			return null;
 
 		sum = modulus * 2;
 		for (let i = 0; i < 9; i++)
@@ -69,7 +69,7 @@ export = class Validacao {
 		else
 			modulus = 11 - modulus;
 
-		return ((cpf.charCodeAt(10) - 0x30) === modulus);
+		return (((cpf.charCodeAt(10) - 0x30) === modulus) ? cpf : null);
 	}
 
 	public static isEmail(email: string | null): boolean {

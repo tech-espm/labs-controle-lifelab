@@ -520,7 +520,7 @@ window.prepareDataTable = function (id, opt) {
 			}
 		}
 		if (o.export) {
-			addFilterButton(id + "_filter", "fa-nomargin fa-file-text fa-file-alt", null, function () {
+			addFilterButton(id + "_filter", "fa-nomargin fa-download", null, function () {
 				DataTableExporter.exportCSV(dt, {
 					title: o.export.title,
 					includeNonSortableColumns: !!o.export.includeNonSortableColumns,

@@ -1,8 +1,20 @@
 import DataUtil = require("./dataUtil");
 
-export = class TimeStamp {
+export = class Timestamp {
 	public static agora(): number {
 		return ((new Date()).getTime() / 1000) | 0;
+	}
+
+	public static date(timestamp: number): Date {
+		return new Date((timestamp | 0) * 1000);
+	}
+
+	public static horarioDeBrasiliaComoDateUTC(timestamp: number): Date {
+		return new Date(((timestamp | 0) * 1000) - (180 * 60000));
+	}
+
+	public static utcTime(timestamp: number): number {
+		return (timestamp | 0) * 1000;
 	}
 
 	public static utc(ano: number, mes: number, dia: number, hora?: number, minuto?: number, segundo?: number): number {

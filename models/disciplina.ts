@@ -1,7 +1,7 @@
 ﻿import app = require("teem");
 import appsettings = require("../appsettings");
 import DataUtil = require("../utils/dataUtil");
-import TimeStamp = require("../utils/timeStamp");
+import Timestamp = require("../utils/timestamp");
 import IntegracaoMicroservices = require("./integracao/microservices");
 
 interface DisciplinaUsuario {
@@ -648,7 +648,7 @@ class Disciplina {
 				}
 				while (!(o.qr4 = ((0x7fffffff * Math.random()) | 0))) {
 				}
-				timestampqr = TimeStamp.agora();
+				timestampqr = Timestamp.agora();
 			}
 
 			await sql.query("update disciplina_ocorrencia set estado = ?, qr1 = ?, qr2 = ?, qr3 = ?, qr4 = ?, timestampqr = ? where id = ? and iddisciplina = ? and estado = ? and qr1 = ?", [o.estado, o.qr1, o.qr2, o.qr3, o.qr4, timestampqr, o.id, o.iddisciplina, ocorrencia.estado, ocorrencia.qr1]);
