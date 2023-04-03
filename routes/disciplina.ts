@@ -1,6 +1,7 @@
 ﻿import app = require("teem");
 import appsettings = require("../appsettings");
 import Disciplina = require("../models/disciplina");
+import IntegracaoMicroservices = require("../models/integracao/microservices");
 import Usuario = require("../models/usuario");
 import DataUtil = require("../utils/dataUtil");
 
@@ -148,6 +149,7 @@ class DisciplinaRoute {
 		} else {
 			let id = parseInt(req.query["id"] as string);
 			let disciplina: any;
+			let estudantesDisciplinaJSON: string;
 			if (isNaN(id))
 				res.render("index/nao-encontrado", {
 					layout: "layout-sem-form",
@@ -155,6 +157,11 @@ class DisciplinaRoute {
 				});
 			else if (!(disciplina = await Disciplina.usuarioTemDisciplinaObj(id, u.id, u.admin, false)))
 				res.redirect(app.root + "/acesso");
+			else if (!(estudantesDisciplinaJSON = await IntegracaoMicroservices.obterEstudantesDisciplina(disciplina.idcurso, disciplina.ano, disciplina.semestre)))
+				res.render("index/erro", {
+					layout: "layout-externo",
+					mensagem: "Não foram encontradas matrículas na disciplina"
+				});
 			else
 				res.render("disciplina/presenca", {
 					titulo: "Presenças da Disciplina",
@@ -163,6 +170,7 @@ class DisciplinaRoute {
 					datatables: true,
 					usuario: u,
 					disciplina,
+					estudantesDisciplinaJSON,
 					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
 				});
 		}
@@ -176,6 +184,7 @@ class DisciplinaRoute {
 			let id = parseInt(req.query["id"] as string);
 			let disciplina: any;
 			let ocorrencias: any;
+			let estudantesDisciplinaJSON: string;
 			if (isNaN(id))
 				res.render("index/nao-encontrado", {
 					layout: "layout-sem-form",
@@ -188,6 +197,11 @@ class DisciplinaRoute {
 					layout: "layout-externo",
 					mensagem: ocorrencias
 				});
+			else if (!(estudantesDisciplinaJSON = await IntegracaoMicroservices.obterEstudantesDisciplina(disciplina.idcurso, disciplina.ano, disciplina.semestre)))
+				res.render("index/erro", {
+					layout: "layout-externo",
+					mensagem: "Não foram encontradas matrículas na disciplina"
+				});
 			else
 				res.render("disciplina/presenca-semestral", {
 					titulo: "Presença Semestral da Disciplina",
@@ -197,6 +211,7 @@ class DisciplinaRoute {
 					usuario: u,
 					disciplina,
 					ocorrencias,
+					estudantesDisciplinaJSON,
 					emailProfessores: await Disciplina.obterEmailDosProfessores(disciplina.id)
 				});
 		}

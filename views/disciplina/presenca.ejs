@@ -93,18 +93,17 @@
 </div>
 
 <%- contentFor("scripts") %>
+
+<%- include("presenca-class") %>
+
 <script type="text/javascript">
 	//<![CDATA[
 	"use strict";
 
-	const disciplina = <%- JSON.stringify(disciplina) %>;
-
 	let ocorrencia = null,
 		participacoes = null,
 		participacoesZoom = null,
-		estudantesDisciplina = null,
 		dataEscolhida = null,
-		emailProfessores = <%- JSON.stringify(emailProfessores || []) %>,
 		dados = null;
 
 	prepareDatePicker("#data");
@@ -145,276 +144,6 @@
 		});
 	}
 
-	function extrairSegundosDoZoomPorEmail(email, emailalt) {
-		let segundos = 0;
-
-		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
-			const z = participacoesZoom[i];
-
-			if (z.email_aluno == email || z.email_aluno == emailalt) {
-				segundos += z.duracao_presenca_aluno;
-				participacoesZoom.splice(i, 1);
-			}
-		}
-
-		return segundos;
-	}
-
-	function extrairSegundosDoZoomPorRA(ra) {
-		let segundos = 0;
-
-		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
-			const z = participacoesZoom[i];
-
-			if (z.ra == ra) {
-				segundos += z.duracao_presenca_aluno;
-				participacoesZoom.splice(i, 1);
-			}
-		}
-
-		return segundos;
-	}
-
-	function extrairSegundosDoZoomPorNome(nomenorm) {
-		let segundos = 0;
-
-		for (let i = participacoesZoom.length - 1; i >= 0; i--) {
-			const z = participacoesZoom[i];
-
-			if (z.nomenorm == nomenorm) {
-				segundos += z.duracao_presenca_aluno;
-				participacoesZoom.splice(i, 1);
-			}
-		}
-
-		return segundos;
-	}
-
-	function prepararEstudantesDisciplina() {
-		// Precisa fazer um pré-filtro, porque os alunos aparecem duas vezes:
-		// Uma vez com o class_section da turma geral, como LL01, LL02 etc., e
-		// outra vez com o class_section da turma presencial, como LSPA, LRJB etc.,
-		// que é o class_section que nos interessa!
-		const rasDaDisciplina = new Set();
-
-		for (let i = estudantesDisciplina.length - 1; i >= 0; i--) {
-			const estudante = estudantesDisciplina[i];
-			estudante.class_section = (estudante.class_section || "").trim().toUpperCase();
-			estudante.emplid = parseInt(estudante.emplid);
-			if (estudante.class_section === disciplina.idsecao)
-				rasDaDisciplina.add(estudante.emplid);
-		}
-
-		// Agora busca todos os estudantes que estão em rasDaDisciplina, mas com
-		// class_section diferente do da disciplina (LL01, LL02 etc...), para o LifeLab.
-		// Para as eletivas, é o contrário (deve pegar apenas quem tem o class_section
-		// igual ao da disciplina).
-		for (let i = estudantesDisciplina.length - 1; i >= 0; i--) {
-			const estudante = estudantesDisciplina[i];
-			if (!rasDaDisciplina.has(estudante.emplid) ||
-				(!disciplina.eletiva && estudante.class_section === disciplina.idsecao) ||
-				(disciplina.eletiva && estudante.class_section !== disciplina.idsecao)) {
-				estudantesDisciplina.splice(i, 1);
-				continue;
-			}
-
-			estudante.full_name = (estudante.full_name || "").normalize().trim().toUpperCase();
-			estudante.nomenorm = normalizeAccent(estudante.full_name);
-			estudante.email_addr = (estudante.email_addr || "").normalize().trim().toLowerCase();
-		}
-
-		rasDaDisciplina.clear();
-	}
-
-	function prepararDados() {
-		$("#labelLimite").text(ocorrencia.limite);
-		$("#labelMinimo").text(ocorrencia.minimo);
-		$("#labelMinimoMinutos").text(ocorrencia.minimoMinutos);
-
-		const qrsPorRA = new Map();
-
-		let i = 0;
-
-		// Verifica os QR's únicos que cada estudante marcou
-		for (i = participacoes.length - 1; i >= 0; i--) {
-			const p = participacoes[i];
-
-			let pqr = qrsPorRA.get(p.ra);
-			if (!pqr) {
-				pqr = p;
-				// Não precisa transformar o nome em si, nem o e-mail, porque eles
-				// já foram passados por trim(), toUpperCase()/toLowerCase() na hora
-				// de serem gravados no banco
-				pqr.nomenorm = normalizeAccent(pqr.nome);
-				pqr.qr = 0;
-				pqr.presente = 0;
-				pqr.zoom = 0;
-				pqr.marcado = 0;
-				pqr.estados = new Set();
-				qrsPorRA.set(p.ra, pqr);
-			}
-
-			pqr.estados.add(p.estado);
-		}
-
-		// Adiciona os demais alunos da disciplina, para poder exibir efetivamente
-		// quem faltou, independente de ter marcado ao menos 1 QR ou não.
-		for (i = estudantesDisciplina.length - 1; i >= 0; i--) {
-			const estudante = estudantesDisciplina[i];
-			if (qrsPorRA.has(estudante.emplid))
-				continue;
-
-			qrsPorRA.set(estudante.emplid, {
-				email: estudante.email_addr,
-				emailalt: null,
-				estado: 0,
-				nome: estudante.full_name,
-				ra: estudante.emplid,
-				turma: estudante.class_section,
-				nomenorm: estudante.nomenorm,
-				qr: 0,
-				presente: 0,
-				zoom: 0,
-				marcado: 0,
-				estados: new Set()
-			});
-		}
-
-		// Conta os QR's únicos marcados e calcula a presença com
-		// base no mínimo exigido na configuração da ocorrência
-		dados = new Array(qrsPorRA.size);
-
-		const minimo = ocorrencia.minimo,
-			presencaInicial = ((participacoesZoom && participacoesZoom.length) ? 1 : 0);
-
-		i = 0;
-
-		for (let p of qrsPorRA.values()) {
-			p.qr = p.estados.size;
-			if (p.qr >= minimo)
-				p.presente = presencaInicial;
-			p.estados.clear();
-			p.estados = null;
-			dados[i++] = p;
-		}
-
-		qrsPorRA.clear();
-
-		if (!presencaInicial) {
-			$("#btnZoom").hide();
-			return;
-		}
-
-		// Remove as entradas duplicadas provenientes da API do Zoom
-		participacoesZoom.sort((a, b) => {
-			if (a.duracao_aula !== b.duracao_aula)
-				return (a.duracao_aula < b.duracao_aula ? -1 : 1);
-			if (a.duracao_presenca_aluno !== b.duracao_presenca_aluno)
-				return (a.duracao_presenca_aluno < b.duracao_presenca_aluno ? -1 : 1);
-			if (a.email_aluno !== b.email_aluno)
-				return (a.email_aluno < b.email_aluno ? -1 : 1);
-			return 0;
-		});
-
-		for (i = participacoesZoom.length - 1; i > 0; i--) {
-			const a = participacoesZoom[i];
-			const b = participacoesZoom[i - 1];
-
-			if (a.duracao_aula !== b.duracao_aula ||
-				a.duracao_presenca_aluno !== b.duracao_presenca_aluno ||
-				a.email_aluno !== b.email_aluno)
-				continue;
-
-			participacoesZoom.splice(i, 1);
-		}
-
-		const emails = new Set();
-		for (i = emailProfessores.length - 1; i >= 0; i--)
-			emails.add(emailProfessores[i].email);
-
-		// Como os dados do Zoom são meio sem padrão, primeiro organiza
-		// um pouco, antes de sair buscando as semelhanças
-		for (i = participacoesZoom.length - 1; i >= 0; i--) {
-			const z = participacoesZoom[i];
-
-			z.email_aluno = (z.email_aluno || "").trim().toLowerCase();
-
-			if (emails.has(z.email_aluno)) {
-				participacoesZoom.splice(i, 1);
-				continue;
-			}
-
-			z.nomenorm = normalizeAccent(z.nome_aluno || "");
-
-			// Existem alguns casos:
-			// NOME SOBRENOME
-			// NOME SOBRENOME_12345678
-			// NOME SOBRENOME_12345678_NOME.SOBRENOME
-			let u = z.nomenorm.indexOf("_");
-			let ra = 0;
-			if (u >= 0) {
-				ra = parseInt(z.nomenorm.substring(u + 1));
-				if (isNaN(ra)) {
-					ra = 0;
-					u = z.nomenorm.lastIndexOf("_");
-					if (u >= 0) {
-						ra = parseInt(z.nomenorm.substring(u + 1));
-						if (isNaN(ra))
-							ra = 0;
-						else
-							z.nomenorm = z.nomenorm.substring(0, u);
-					}
-				} else {
-					z.nomenorm = z.nomenorm.substring(0, u);
-				}
-			}
-			z.ra = ra;
-		}
-
-		// Primeiro consome todos os registros que batem o e-mail
-		for (i = dados.length - 1; i >= 0; i--) {
-			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorEmail(p.email, p.emailalt);
-		}
-
-		// Em seguida, consome todos os registros que batem o RA
-		for (i = dados.length - 1; i >= 0; i--) {
-			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorRA(p.ra);
-		}
-
-		const minimoMinutos = ocorrencia.minimoMinutos;
-
-		// Por fim, consome todos os registros que batem o nome
-		// (Precisa ser feito nessa ordem, por causa de homônimos e
-		// outros casos...)
-		for (i = dados.length - 1; i >= 0; i--) {
-			const p = dados[i];
-			p.zoom += extrairSegundosDoZoomPorNome(p.nomenorm);
-			p.zoom = Math.round(p.zoom / 60);
-			if (p.presente && (p.zoom < minimoMinutos))
-				p.presente = ((p.zoom < (minimoMinutos - 3)) ? 0 : 2);
-		}
-
-		participacoesZoom.sort((a, b) => (a.nomenorm == b.nomenorm) ? (a.email_aluno < b.email_aluno ? -1 : 1) : (a.nomenorm < b.nomenorm ? -1 : 1));
-
-		// Agrupa o restante só se o nome e o email baterem
-		for (i = participacoesZoom.length - 2; i >= 0 && participacoesZoom.length > 1; i--) {
-			const z1 = participacoesZoom[i],
-				z2 = participacoesZoom[i + 1];
-
-			if (z1.nomenorm == z2.nomenorm && z1.email_aluno == z2.email_aluno) {
-				z1.duracao_presenca_aluno += z2.duracao_presenca_aluno;
-				participacoesZoom.splice(i + 1, 1);
-			}
-		}
-
-		if (!participacoesZoom.length)
-			$("#btnZoom").hide();
-		else
-			$("#btnZoom").show();
-	}
-
 	function atualizarTela() {
 		if (!ocorrencia)
 			return;
@@ -423,7 +152,17 @@
 
 		if (!dados) {
 			alertaZoomVazio = (!participacoesZoom || !participacoesZoom.length);
-			prepararDados();
+
+			dados = prepararDados(ocorrencia, participacoes, participacoesZoom);
+
+			$("#labelLimite").text(ocorrencia.limite);
+			$("#labelMinimo").text(ocorrencia.minimo);
+			$("#labelMinimoMinutos").text(ocorrencia.minimoMinutos);
+
+			if (!participacoesZoom || !participacoesZoom.length)
+				$("#btnZoom").hide();
+			else
+				$("#btnZoom").show();
 		}
 
 		const todasTurmas = document.getElementById("chkTodasTurmas").checked;
@@ -507,78 +246,18 @@
 			return;
 		}
 
-		Swal.wait();
+		verificarPresencasPorData(data, function (o, p, z, erro) {
+			ocorrencia = o;
+			participacoes = p;
+			participacoesZoom = z;
 
-		var terminar = function () {
-			JsonWebApi.get("<%- root %>/api/disciplina/obterOcorrenciaConcluidaPorData", function (response) {
-				if (response.success) {
-					const o = response.value;
-
-					JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoes", function (response) {
-						if (response.success) {
-							const p = response.value;
-
-							JsonWebApi.get("<%- root %>/api/disciplina/obterParticipacoesZoom", function (response) {
-								if (response.success) {
-									Swal.close();
-
-									ocorrencia = o;
-									participacoes = p;
-									participacoesZoom = response.value;
-
-									atualizarTela();
-								} else {
-									Swal.error(response.value + " " + emoji.sad);
-
-									ocorrencia = null;
-									participacoes = null;
-									participacoesZoom = null;
-
-									atualizarTela();
-								}
-							}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
-
-						} else {
-							Swal.error(response.value + " " + emoji.sad);
-
-							ocorrencia = null;
-							participacoes = null;
-							participacoesZoom = null;
-
-							atualizarTela();
-						}
-					}, "id", disciplina.id, "idocorrencia", o.id);
-
-				} else {
-					Swal.error(response.value + " " + emoji.sad);
-
-					ocorrencia = null;
-					participacoes = null;
-					participacoesZoom = null;
-
-					atualizarTela();
-				}
-			}, "id", disciplina.id, "data", DataUtil.converterISOParaNumero(data));
-		};
-
-		if (estudantesDisciplina) {
-			terminar();
-		} else {
-			JsonWebApi.get("<%- root %>/api/disciplina/obterEstudantes", function (response) {
-				if (response.success) {
-					estudantesDisciplina = response.value;
-					if (!estudantesDisciplina || !estudantesDisciplina.length) {
-						estudantesDisciplina = null;
-						Swal.error("Não foram encontradas matrículas na disciplina " + emoji.sad);
-					} else {
-						prepararEstudantesDisciplina();
-						terminar();
-					}
-				} else {
-					Swal.error(response.value + " " + emoji.sad);
-				}
-			}, "id", disciplina.id);
-		}
+			if (erro) {
+				Swal.error(erro + " " + emoji.sad);
+			} else {
+				Swal.close();
+				atualizarTela();
+			}
+		});
 	}
 
 	function verificarIdparticipacao() {
