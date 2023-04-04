@@ -38,7 +38,7 @@
 	"use strict";
 
 	let ocorrencias = <%- JSON.stringify(ocorrencias || []) %>,
-		qrsDosEstudantesAtuais = new Set(),
+		estudantesPreenchidosPorRA = new Map(),
 		dados = null,
 		colunas = [
 			{ title: "Nome", render: encode, data: "nome" },
@@ -46,8 +46,34 @@
 			{ title: "Turma", render: encode, data: "turma" }
 		];
 
+	function criarEstudanteVazio(nome, ra, turma, email, professor) {
+		const estudante = {
+			nome: nome,
+			ra: ra,
+			turma: turma,
+			email: email,
+			professor: professor
+		};
+
+		for (let i = 0; i < ocorrencias.length; i++) {
+			estudante["presente" + i] = 0;
+			estudante["qr" + i] = 0;
+			estudante["zoom" + i] = 0;
+		}
+
+		estudantesPreenchidosPorRA.set(ra, estudante);
+
+		return estudante;
+	}
+
 	function prepararOcorrencia(indiceOcorrencia) {
 		if (indiceOcorrencia >= ocorrencias.length) {
+			dados = new Array(estudantesPreenchidosPorRA.size);
+
+			let i = 0;
+			for (let e of estudantesPreenchidosPorRA.values())
+				dados[i++] = e;
+
 			Swal.close();
 			atualizarTela();
 			return;
@@ -68,51 +94,28 @@
 				return;
 			}
 
-			if (!dados) {
-				// Preenche os RA's dos alunos para poder filtrar posteriormente,
-				// e remover os alunos que não fazem mais parte dessa disciplina.
+			const presenteI = "presente" + indiceOcorrencia;
+			const qrI = "qr" + indiceOcorrencia;
+			const zoomI = "zoom" + indiceOcorrencia;
+
+			colunas.push(
+				{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: presenteI },
+				{ title: "QR", "type": "number", data: qrI },
+				{ title: "Zoom (Minutos)", "type": "number", data: zoomI }
+			);
+
+			if (!indiceOcorrencia) {
 				for (let i = estudantesDisciplina.length - 1; i >= 0; i--)
-					qrsDosEstudantesAtuais.add(estudantesDisciplina[i].emplid);
+					criarEstudanteVazio((estudantesDisciplina[i].full_name || "").trim(), estudantesDisciplina[i].emplid, (estudantesDisciplina[i].class_section || "").trim(), (estudantesDisciplina[i].email_addr || "").trim(), false);
 			}
 
 			for (let i = dadosTemp.length - 1; i >= 0; i--) {
-				if (!qrsDosEstudantesAtuais.has(dadosTemp[i].ra))
-					dadosTemp.splice(i, 1);
-			}
+				const estudante = (estudantesPreenchidosPorRA.get(dadosTemp[i].ra) ||
+					criarEstudanteVazio(dadosTemp[i].nome, dadosTemp[i].ra, dadosTemp[i].turma, dadosTemp[i].email, false));
 
-			dadosTemp.sort(function (a, b) { return (a.email < b.email ? -1 : 1); });
-
-			if (!dados) {
-				dados = dadosTemp;
-				colunas.push(
-					{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: "presente" },
-					{ title: "QR", "type": "number", data: "qr" },
-					{ title: "Zoom (Minutos)", "type": "number", data: "zoom" }
-				);
-			} else if (!dadosTemp || dadosTemp.length !== dados.length) {
-				Swal.error("Os dados da ocorrência do dia " + dataStr + " possuem " + dadosTemp.length + " entradas, mas os dados anteriores possuem " + dados.length + " entradas " + emoji.sad);
-				return;
-			} else {
-				const presenteI = "presente" + indiceOcorrencia;
-				const qrI = "qr" + indiceOcorrencia;
-				const zoomI = "zoom" + indiceOcorrencia;
-
-				colunas.push(
-					{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: presenteI },
-					{ title: "QR", "type": "number", data: qrI },
-					{ title: "Zoom (Minutos)", "type": "number", data: zoomI }
-				);
-
-				for (let i = 0; i < dadosTemp.length; i++) {
-					if (dadosTemp[i].email !== dados[i].email) {
-						Swal.error("O e-mail da " + (i + 1) + "ª entrada de dados do dia " + dataStr + " é " + dadosTemp[i].email + ", ao passo que nos dados anteriores era " + dados[i].email + " " + emoji.sad);
-						return;
-					}
-
-					dados[i][presenteI] = dadosTemp[i].presente;
-					dados[i][qrI] = dadosTemp[i].qr;
-					dados[i][zoomI] = dadosTemp[i].zoom;
-				}
+				estudante[presenteI] = dadosTemp[i].presente;
+				estudante[qrI] = dadosTemp[i].qr;
+				estudante[zoomI] = dadosTemp[i].zoom;
 			}
 
 			prepararOcorrencia(indiceOcorrencia + 1);
