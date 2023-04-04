@@ -371,7 +371,7 @@ class Disciplina {
 
 	public static async obterEmailDosProfessores(id: number): Promise<any[]> {
 		return app.sql.connect(async (sql) => {
-			return await sql.query("select u.email from disciplina d inner join disciplina_usuario du on du.iddisciplina = d.id inner join usuario u on u.id = du.idusuario where d.id = ? and u.exclusao is null", [id]);
+			return await sql.query("select u.nome, u.email from disciplina d inner join disciplina_usuario du on du.iddisciplina = d.id inner join usuario u on u.id = du.idusuario where d.id = ? and u.exclusao is null", [id]);
 		});
 	}
 

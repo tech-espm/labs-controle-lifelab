@@ -43,7 +43,10 @@
 		colunas = [
 			{ title: "Nome", render: encode, data: "nome" },
 			{ title: "RA", "type":"number", data: "ra" },
-			{ title: "Turma", render: encode, data: "turma" }
+			{ title: "Turma", render: encode, data: "turma" },
+			//<% if (usuario.admin) { %>
+			{ title: "Professor", render: encode, data: "professor" },
+			//<% } %>
 		];
 
 	function criarEstudanteVazio(nome, ra, turma, email, professor) {
@@ -52,7 +55,7 @@
 			ra: ra,
 			turma: turma,
 			email: email,
-			professor: professor
+			professor: professor || ""
 		};
 
 		for (let i = 0; i < ocorrencias.length; i++) {
@@ -65,6 +68,18 @@
 
 		return estudante;
 	}
+
+	//<% if (usuario.admin) { %>
+	function extrairProfessor(participacoesZoom, nome, email, presenteI, zoomI) {
+		const professor = (estudantesPreenchidosPorRA.get(email) ||
+			criarEstudanteVazio(nome, email, "", email, "Professor"));
+
+		const minimoMinutosProfessor = 85;
+		const zoom = Math.round(extrairSegundosDoZoomPorEmail(participacoesZoom, email) / 60);
+		professor[zoomI] = zoom;
+		professor[presenteI] = ((zoom < minimoMinutosProfessor) ? 0 : 1);
+	}
+	//<% } %>
 
 	function prepararOcorrencia(indiceOcorrencia) {
 		if (indiceOcorrencia >= ocorrencias.length) {
@@ -88,15 +103,20 @@
 				return;
 			}
 
+			const presenteI = "presente" + indiceOcorrencia;
+			const qrI = "qr" + indiceOcorrencia;
+			const zoomI = "zoom" + indiceOcorrencia;
+
+			//<% if (usuario.admin) { %>
+			for (let i = emailProfessores.length - 1; i >= 0; i--)
+				extrairProfessor(z, emailProfessores[i].nome, emailProfessores[i].email, presenteI, zoomI);
+			//<% } %>
+
 			const dadosTemp = prepararDados(o, p, z);
 			if (!dadosTemp || !dadosTemp.length) {
 				Swal.error("Os dados da ocorrência do dia " + dataStr + " estavam vazios " + emoji.sad);
 				return;
 			}
-
-			const presenteI = "presente" + indiceOcorrencia;
-			const qrI = "qr" + indiceOcorrencia;
-			const zoomI = "zoom" + indiceOcorrencia;
 
 			colunas.push(
 				{ title: dataStr.substring(0, 5), "class": "borda-data", render: function (v, type, row) { return (v ? (v == 2 ? "Considerado" : "Sim") : '<b class="text-danger">Não</b>'); }, data: presenteI },
@@ -106,12 +126,12 @@
 
 			if (!indiceOcorrencia) {
 				for (let i = estudantesDisciplina.length - 1; i >= 0; i--)
-					criarEstudanteVazio((estudantesDisciplina[i].full_name || "").trim(), estudantesDisciplina[i].emplid, (estudantesDisciplina[i].class_section || "").trim(), (estudantesDisciplina[i].email_addr || "").trim(), false);
+					criarEstudanteVazio((estudantesDisciplina[i].full_name || "").trim(), estudantesDisciplina[i].emplid, (estudantesDisciplina[i].class_section || "").trim(), (estudantesDisciplina[i].email_addr || "").trim());
 			}
 
 			for (let i = dadosTemp.length - 1; i >= 0; i--) {
 				const estudante = (estudantesPreenchidosPorRA.get(dadosTemp[i].ra) ||
-					criarEstudanteVazio(dadosTemp[i].nome, dadosTemp[i].ra, dadosTemp[i].turma, dadosTemp[i].email, false));
+					criarEstudanteVazio(dadosTemp[i].nome, dadosTemp[i].ra, dadosTemp[i].turma, dadosTemp[i].email));
 
 				estudante[presenteI] = dadosTemp[i].presente;
 				estudante[qrI] = dadosTemp[i].qr;
@@ -132,7 +152,7 @@
 		} else {
 			colunas[2].visible = false;
 			for (let i = dadosFiltrados.length - 1; i >= 0; i--) {
-				if (dadosFiltrados[i].turma !== disciplina.turma)
+				if (!dadosFiltrados[i].professor && dadosFiltrados[i].turma !== disciplina.turma)
 					dadosFiltrados.splice(i, 1);
 			}
 		}
@@ -140,7 +160,11 @@
 		$("#container-tabela").html('<table class="table table-flush table-striped table-hover table-row-pointer" id="tabela"></table>');
 
 		const tabela = prepareDataTable("tabela", {
+			//<% if (usuario.admin) { %>
+			order: [[3, "desc"], [0, "asc"]],
+			//<% } else { %>
 			order: [[0, "asc"]],
+			//<% } %>
 			deferRender: true,
 			columns: colunas,
 			data: dadosFiltrados,
